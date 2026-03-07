@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Shield, Lock, User, ShieldAlert } from 'lucide-react';
+import { Shield, Lock, Mail, ShieldAlert } from 'lucide-react'; // Trocamos o ícone User pelo Mail
 
 export default function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(''); // Estado agora é Email
+  const [senha, setSenha] = useState(''); // Estado agora é Senha
   const [status, setStatus] = useState({ type: '', message: '' });
   const navigate = useNavigate();
 
@@ -16,7 +16,7 @@ export default function Login() {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, senha }), // Agora envia o email e a senha pro backend
       });
 
       const data = await res.json();
@@ -53,15 +53,15 @@ export default function Login() {
         
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-1">
-            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Passaporte / Usuário</label>
+            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Email de Acesso</label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
               <input 
-                type="text" 
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-slate-950/50 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                placeholder="Ex: 4821 ou admin"
+                placeholder="seu@email.com"
                 required 
               />
             </div>
@@ -73,8 +73,8 @@ export default function Login() {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
               <input 
                 type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
                 className="w-full bg-slate-950/50 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
                 placeholder="••••••••"
                 required 
