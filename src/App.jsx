@@ -10,6 +10,7 @@ import Investigacoes from './pages/Investigacoes';
 import Operacoes from './pages/Operacoes';
 import PainelComando from './pages/PainelComando';
 import PorteArma from './pages/PorteArma';
+import Login from './pages/Login';
 import './index.css';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
       <main className="min-h-screen bg-slate-950">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/sobre" element={<Sobre />} />
           <Route path="/recrutamento" element={<Recrutamento />} />
           <Route path="/codigo" element={<CodigoPenal />} />
