@@ -1,0 +1,33 @@
+import clientPromise from './_lib/mongodb.js';
+import { ObjectId } from 'mongodb'; // Precisamos disso para buscar pelo ID correto
+
+export default async function handler(req, res) {
+  try {
+    const client = await clientPromise;
+    const db = client.db("lspd_database");
+    const usuariosCollection = db.collection("usuarios");
+
+    // Método GET: Puxa todos os usuários para mostrar no Painel Admin
+    if (req.method === 'GET') {
+      // Retorna todos os usuários (tirando as senhas por segurança)
+      const usuarios = await usuariosCollection.find({}, { projection: { senha: 0 } }).toArray();
+      return res.status(200).json(usuarios);
+    }
+
+    // Método PUT: Atualiza a patente ou a permissão (role) de um usuário
+    if (req.method === 'PUT') {
+      const { id, campo, valor } = req.body;
+      
+      const resultado = await usuariosCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { [campo]: valor } }
+      );
+
+      return res.status(200).json(resultado);
+    }
+
+  } catch (error) {
+    console.error("Erro na API de usuários:", error);
+    return res.status(500).json({ message: 'Erro interno no servidor.' });
+  }
+}
