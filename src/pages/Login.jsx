@@ -22,9 +22,14 @@ export default function Login() {
       const data = await res.json();
 
       if (res.ok) {
+        // 1. SALVAR A SESSÃO: Isso diz ao seu App que o usuário está logado
+        localStorage.setItem('autenticado', 'true');
+        localStorage.setItem('usuario', JSON.stringify(data.user));
+
         setStatus({ type: 'success', message: `Acesso liberado, ${data.user.patente}! Redirecionando...` });
-        // Redireciona para o painel de comando após 2 segundos
-        setTimeout(() => navigate('/comando'), 2000); 
+        
+        // 2. REDIRECIONAR PARA O HOME: Mudamos de '/comando' para '/'
+        setTimeout(() => navigate('/'), 2000); 
       } else {
         setStatus({ type: 'error', message: data.message || 'Falha na autenticação.' });
       }
@@ -37,7 +42,6 @@ export default function Login() {
     <div className="flex items-center justify-center min-h-[80vh]">
       <div className="bg-slate-900 p-8 rounded-lg shadow-2xl border border-slate-800 w-full max-w-md">
         <div className="flex justify-center mb-6">
-          {/* Se você tiver uma logo, pode colocar a tag <img src="/logo.png" /> aqui */}
           <div className="w-16 h-16 bg-blue-900 rounded-full flex items-center justify-center border-2 border-blue-500">
             <span className="text-blue-400 font-bold text-xl">LSPD</span>
           </div>
@@ -67,7 +71,6 @@ export default function Login() {
             />
           </div>
           
-          {/* Mensagens de Feedback */}
           {status.message && (
             <div className={`p-3 rounded text-sm text-center font-medium ${
               status.type === 'error' ? 'bg-red-900/50 text-red-300 border border-red-800' : 
