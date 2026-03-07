@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { Shield, Lock, User, ShieldAlert } from 'lucide-react';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -9,10 +10,9 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setStatus({ type: 'loading', message: 'Estabelecendo conexão com o servidor LSPD...' });
+    setStatus({ type: 'loading', message: 'Estabelecendo conexão segura...' });
 
     try {
-      // Fazendo a chamada para nossa API na Vercel / Backend
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -22,61 +22,73 @@ export default function Login() {
       const data = await res.json();
 
       if (res.ok) {
-        // 1. SALVAR A SESSÃO: Isso diz ao seu App que o usuário está logado
         localStorage.setItem('autenticado', 'true');
         localStorage.setItem('usuario', JSON.stringify(data.user));
 
-        setStatus({ type: 'success', message: `Acesso liberado, ${data.user.patente}! Redirecionando...` });
-        
-        // 2. REDIRECIONAR PARA O HOME: Mudamos de '/comando' para '/'
+        setStatus({ type: 'success', message: `Acesso autorizado. Bem-vindo, ${data.user.nome}!` });
         setTimeout(() => navigate('/'), 2000); 
       } else {
-        setStatus({ type: 'error', message: data.message || 'Falha na autenticação.' });
+        setStatus({ type: 'error', message: data.message || 'Credenciais inválidas.' });
       }
     } catch (error) {
-      setStatus({ type: 'error', message: 'Erro crítico de conexão com o banco de dados.' });
+      setStatus({ type: 'error', message: 'Erro de conexão com os servidores LSPD.' });
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[80vh]">
-      <div className="bg-slate-900 p-8 rounded-lg shadow-2xl border border-slate-800 w-full max-w-md">
-        <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 bg-blue-900 rounded-full flex items-center justify-center border-2 border-blue-500">
-            <span className="text-blue-400 font-bold text-xl">LSPD</span>
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Efeitos de Fundo */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-red-600/10 blur-[120px] rounded-full"></div>
+
+      <div className="w-full max-w-md backdrop-blur-xl bg-slate-900/60 p-8 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.5)] border border-slate-700/50 relative z-10">
+        
+        <div className="flex flex-col items-center justify-center mb-8">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-900 to-slate-900 rounded-2xl flex items-center justify-center border border-blue-500/30 shadow-[0_0_20px_rgba(37,99,235,0.3)] mb-4">
+            <Shield className="text-blue-500" size={40} />
           </div>
+          <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-slate-200 uppercase tracking-widest">LSPD SYSTEM</h2>
+          <p className="text-slate-400 text-xs font-bold tracking-[0.2em] mt-2 uppercase">Acesso Restrito ao Departamento</p>
         </div>
         
-        <h2 className="text-2xl font-bold text-white mb-6 text-center">Acesso Restrito</h2>
-        
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="block text-slate-400 text-sm mb-1 uppercase tracking-wider">Identificação (Usuário)</label>
-            <input 
-              type="text" 
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-              required 
-            />
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div className="space-y-1">
+            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Passaporte / Usuário</label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+              <input 
+                type="text" 
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full bg-slate-950/50 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                placeholder="Ex: 4821 ou admin"
+                required 
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-slate-400 text-sm mb-1 uppercase tracking-wider">Senha de Segurança</label>
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-              required 
-            />
+
+          <div className="space-y-1">
+            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Senha de Segurança</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+              <input 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-slate-950/50 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                placeholder="••••••••"
+                required 
+              />
+            </div>
           </div>
           
           {status.message && (
-            <div className={`p-3 rounded text-sm text-center font-medium ${
-              status.type === 'error' ? 'bg-red-900/50 text-red-300 border border-red-800' : 
-              status.type === 'success' ? 'bg-green-900/50 text-green-300 border border-green-800' : 
-              'bg-blue-900/50 text-blue-300 border border-blue-800'
+            <div className={`p-4 rounded-lg text-sm text-center font-bold flex items-center justify-center gap-2 ${
+              status.type === 'error' ? 'bg-red-950/50 text-red-400 border border-red-900/50' : 
+              status.type === 'success' ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900/50' : 
+              'bg-blue-950/50 text-blue-400 border border-blue-900/50'
             }`}>
+              {status.type === 'error' && <ShieldAlert size={16} />}
               {status.message}
             </div>
           )}
@@ -84,11 +96,21 @@ export default function Login() {
           <button 
             type="submit" 
             disabled={status.type === 'loading'}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white font-black py-4 px-4 rounded-lg uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-50 shadow-[0_0_20px_rgba(37,99,235,0.2)]"
           >
             {status.type === 'loading' ? 'Verificando...' : 'Autenticar'}
           </button>
         </form>
+
+        <div className="mt-8 text-center border-t border-slate-800/50 pt-6">
+          <p className="text-slate-500 text-sm">
+            Não possui credenciais? <br/>
+            <Link to="/registro" className="text-blue-400 font-bold hover:text-blue-300 transition-colors uppercase text-xs tracking-widest mt-2 inline-block">
+              Solicitar Registro no Sistema
+            </Link>
+          </p>
+        </div>
+
       </div>
     </div>
   );
