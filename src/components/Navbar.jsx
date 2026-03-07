@@ -7,34 +7,21 @@ import {
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Puxamos as informações do usuário logado do cache do navegador
   const usuarioInfo = JSON.parse(localStorage.getItem('usuario') || '{}');
   const isAdmin = usuarioInfo?.role === 'admin';
 
-  // Lista padrão de links (para todos os logados)
   const navLinks = [
-    { name: 'Início', path: '/', icon: <Shield className="w-4 h-4" /> },
-    { name: 'Corporação', path: '/sobre', icon: <Users className="w-4 h-4" /> },
-    { name: 'Código Penal', path: '/codigo', icon: <FileText className="w-4 h-4" /> },
-    { name: 'Oficiais', path: '/oficiais', icon: <ClipboardList className="w-4 h-4" /> },
-    { name: 'Banco Criminal', path: '/banco-criminal', icon: <Search className="w-4 h-4" /> },
-    { name: 'FIB', path: '/investigacoes', icon: <Briefcase className="w-4 h-4" /> },
-    { name: 'Operações', path: '/operacoes', icon: <Crosshair className="w-4 h-4" /> },
-    { name: 'Comando', path: '/comando', icon: <Crown className="w-4 h-4" /> },
-    { name: 'Porte de Arma', path: '/porte-arma', icon: <FileSignature className="w-4 h-4" /> },
+    { name: 'Início', path: '/', icon: <Shield size={16} /> },
+    { name: 'Sobre', path: '/sobre', icon: <Users size={16} /> },
+    { name: 'Penal', path: '/codigo', icon: <FileText size={16} /> },
+    { name: 'Oficiais', path: '/oficiais', icon: <ClipboardList size={16} /> },
+    { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} /> },
+    { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },
+    { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} /> },
+    { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
+    { name: 'Porte', path: '/porte-arma', icon: <FileSignature size={16} /> },
   ];
 
-  // Se for Admin, injetamos o link do Painel no meio do menu
-  if (isAdmin) {
-    navLinks.push({ 
-      name: 'Painel Admin', 
-      path: '/admin', 
-      icon: <ShieldAlert className="w-4 h-4 text-red-500" /> 
-    });
-  }
-
-  // Função para limpar a sessão e deslogar
   const handleLogout = () => {
     localStorage.removeItem('autenticado');
     localStorage.removeItem('usuario');
@@ -42,76 +29,65 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="fixed w-full z-50 top-0 border-b border-white/10 bg-slate-950/80 backdrop-blur-md supports-[backdrop-filter]:bg-slate-950/60">
-      <div className="max-w-[1400px] mx-auto px-4">
-        <div className="flex items-center justify-between h-20 gap-4">
+    <nav className="fixed w-full z-50 top-0 border-b border-white/10 bg-slate-950/90 backdrop-blur-md">
+      <div className="max-w-full mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
           
-          {/* Logo LSPD */}
-          <div className="flex-shrink-0 flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(37,99,235,0.5)]">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-            <div className="hidden md:flex flex-col">
-              <span className="text-xl font-black tracking-widest text-white leading-none">LSPD</span>
-              <span className="text-[10px] text-blue-400 font-bold tracking-widest uppercase">Rebaixados</span>
-            </div>
+          {/* Esquerda: Logo */}
+          <div className="flex items-center gap-2 min-w-fit">
+            <Shield className="text-blue-500" size={24} />
+            <span className="font-black text-white tracking-tighter text-lg">LSPD</span>
           </div>
 
-          {/* Menu Central (Scrollável em telas menores) */}
-          <div className="flex-1 overflow-x-auto no-scrollbar flex items-center justify-center">
-            <div className="flex items-center space-x-1 whitespace-nowrap px-2">
-              {navLinks.map((link) => {
-                const isActive = location.pathname === link.path;
-                const isAdminLink = link.path === '/admin';
-
-                return (
-                  <Link
-                    key={link.name}
-                    to={link.path}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all duration-300 ${
-                      isActive && !isAdminLink ? 'bg-white/10 text-white shadow-sm border border-white/5' : 
-                      isActive && isAdminLink ? 'bg-red-900/30 text-red-500 border border-red-500/30' :
-                      isAdminLink ? 'text-red-400 hover:bg-red-900/20 hover:text-red-300' :
-                      'text-slate-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {link.icon}
-                    <span className="hidden lg:block">{link.name}</span>
-                  </Link>
-                );
-              })}
-            </div>
+          {/* Centro: Links (Sem arredar/scroll) */}
+          <div className="flex items-center gap-1 mx-4">
+            {navLinks.map((link) => {
+              const isActive = location.pathname === link.path;
+              return (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all ${
+                    isActive 
+                      ? 'bg-blue-600 text-white' 
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {link.icon}
+                  <span className="hidden xl:block">{link.name}</span>
+                </Link>
+              );
+            })}
           </div>
 
-          {/* Área Direita: Perfil e Logout */}
-          <div className="flex-shrink-0 flex items-center gap-3">
+          {/* Direita: Admin, Perfil e Logout */}
+          <div className="flex items-center gap-2 min-w-fit border-l border-white/10 pl-4">
             
-            {/* Textos de Patente e Nome */}
-            <div className="hidden md:flex flex-col items-end mr-1">
-              <span className="text-[10px] text-blue-400 font-bold tracking-widest uppercase">
-                {usuarioInfo?.patente || 'Sem Patente'}
-              </span>
-              <span className="text-sm font-black text-white leading-tight">
-                {usuarioInfo?.nome || 'Cidadão'}
-              </span>
-            </div>
-            
-            {/* Botão de Perfil */}
-            <button 
-              className="flex items-center justify-center w-10 h-10 bg-slate-900 hover:bg-blue-900/30 border border-slate-800 hover:border-blue-500/50 text-slate-400 hover:text-blue-400 rounded-lg transition-all"
-              title="Meu Perfil"
-              // Se quiser criar uma página de perfil depois, pode usar: onClick={() => navigate('/perfil')}
-            >
-              <User className="w-5 h-5" />
-            </button>
+            {/* Botão Admin só aparece se for Admin - Agora isolado no canto */}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all ${
+                  location.pathname === '/admin' 
+                    ? 'bg-red-600 text-white' 
+                    : 'bg-red-900/20 text-red-500 border border-red-500/20 hover:bg-red-900/40'
+                }`}
+              >
+                <ShieldAlert size={16} />
+                <span className="hidden lg:block">Admin</span>
+              </Link>
+            )}
 
-            {/* Botão de Logout */}
+            <div className="hidden lg:flex flex-col items-end px-2">
+              <span className="text-[9px] text-blue-400 font-bold uppercase leading-none">{usuarioInfo?.patente}</span>
+              <span className="text-xs font-black text-white leading-tight">{usuarioInfo?.nome}</span>
+            </div>
+
             <button 
               onClick={handleLogout}
-              className="flex items-center justify-center w-10 h-10 bg-slate-900 hover:bg-red-900/50 border border-slate-800 hover:border-red-900 text-slate-400 hover:text-red-400 rounded-lg transition-all shadow-[0_0_10px_rgba(0,0,0,0.2)]"
-              title="Sair do Sistema"
+              className="p-2 bg-slate-900 hover:bg-red-950 text-slate-400 hover:text-red-500 rounded-lg border border-slate-800 transition-all"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut size={18} />
             </button>
           </div>
 
