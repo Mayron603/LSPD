@@ -5,7 +5,6 @@ import {
   AlertTriangle, Crosshair, Upload, Image as ImageIcon, Send
 } from 'lucide-react';
 
-// --- BANCO DE CRIMES (MANTIDO EXATAMENTE COMO A PLANILHA) ---
 const BANCO_CRIMES_REBAIXADOS = [
   { artigo: "ART. 121 § I", nome: "HOMICÍDIO DOLOSO", pena: 10, multa: 90000, fianca: "NAO" },
   { artigo: "ART. 121 § II", nome: "HOMICÍDIO QUALIFICADO", pena: 12, multa: 100000, fianca: "NAO" },
@@ -93,11 +92,34 @@ const BANCO_CRIMES_REBAIXADOS = [
 ];
 
 const ITENS_ILEGAIS = [
-  "ARMAS", "MUNIÇÕES", "DINHEIRO SUJO / NOTAS MARCADAS", "LOCKPICK", 
-  "LOCKPICK AVANÇADA", "TABLET DE BOOSTING", "CONTRATO DE ROUBO", 
-  "CARTÃO DE SEGURANÇA", "TERMITA", "C4", "PEN DRIVE TROJAN", 
-  "COLETE BALÍSTICO", "COCAÍNA", "METANFETAMINA", "MACONHA", 
-  "SACO DE SUPRIMENTOS"
+  "ARMAS",
+  "MUNICOES",
+  "TABLET DE CORRIDA",
+  "TABLET DE BOOSTING",
+  "CONTRATO DE ROUBO",
+  "CARTAO DE SEGURANCA NIVEL 1",
+  "CARTAO DE SEGURANCA NIVEL 2",
+  "TERMITA",
+  "KIT ELETRONICO",
+  "C4",
+  "PEN DRIVE TROJAN",
+  "CRYPTO STICK",
+  "FLARE AIRDROP",
+  "LOCKPICK",
+  "LOCKPICK AVANCADA",
+  "COLETE BALISTICO",
+  "CORPO DE ARMA",
+  "COCAINA",
+  "HEROINA",
+  "METANFETAMINA",
+  "MACONHA",
+  "SEMENTE DE COCA",
+  "TIJOLO DE COCAINA",
+  "ANFETAMINA",
+  "SACO DE SUPRIMENTOS ILEGAIS",
+  "TIJOLO DE MACONHA",
+  "NOTAS MARCADAS",
+  "CAIXA DE SUPRIMENTOS ILEGAIS"
 ].sort();
 
 // WEBHOOK DISCORD
@@ -114,10 +136,9 @@ export default function CalculadoraPenal() {
   const [nomeRefem, setNomeRefem] = useState('');
   
   const [itens, setItens] = useState([]);
-  const [itemSelecionado, setItemSelecionado] = useState(ITENS_ILEGAIS[0]);
+  const [itemSelecionado, setItemSelecionado] = useState('');
   const [qtdItem, setQtdItem] = useState(1);
   
-  // Imagem de Evidência
   const [imagemEvidencia, setImagemEvidencia] = useState(null);
   const [previewImagem, setPreviewImagem] = useState('');
 
@@ -162,8 +183,9 @@ export default function CalculadoraPenal() {
   };
 
   const handleAddItem = () => {
-    if (qtdItem > 0) {
-      setItens([...itens, { nome: itemSelecionado, qtd: qtdItem }]);
+    if (qtdItem > 0 && itemSelecionado.trim() !== '') {
+      setItens([...itens, { nome: itemSelecionado.trim().toUpperCase(), qtd: qtdItem }]);
+      setItemSelecionado(''); // Limpa o campo após adicionar
       setQtdItem(1);
     }
   };
@@ -178,6 +200,7 @@ export default function CalculadoraPenal() {
       setTemVeiculo(false); setPlaca('');
       setTemRefem(false); setNomeRefem('');
       setItens([]); setCrimes([]); setReuPrimario(false);
+      setItemSelecionado('');
       removerImagem();
     }
   };
@@ -214,7 +237,7 @@ export default function CalculadoraPenal() {
     const itemsTxt = itens.length > 0 ? itens.map(i => `- ${i.qtd}x ${i.nome}`).join('\n') : "NADA CONSTA";
     const crimesTxt = crimes.length > 0 ? crimes.map(c => `• ${c.artigo} - ${c.nome} (${c.pena === "BAN" ? "BAN" : c.pena + "m"})`).join('\n') : "NENHUM";
 
-    setRelatorioTexto(`\`\`\`md\n# REGISTRO DE OCORRÊNCIA - LSPD\n\n[OFICIAL RESPONSÁVEL]: ${oficial || "N/A"}\n[INDIVÍDUO]: ${individuo || "N/A"}\n[LOCAL]: ${local || "N/A"}\n\n[CENÁRIO]:\n> VEÍCULO UTILIZADO: ${vehicleStr}\n> REFÉM NA AÇÃO: ${hostageStr}\n\n[APREENSÕES]:\n${itemsTxt}\n\n[IMPUTAÇÕES PENAIS]:\n${crimesTxt}\n\n[SENTENÇA FINAL]:\n> PENA TOTAL: ${displayPenaBase} ${!temBan ? "Meses" : ""}\n> MULTA: $${multaTotal.toLocaleString('pt-BR')}\n> FIANÇA: ${displayFianca}\n> ATENUANTE: ${reuPrimario && !temBan ? 'APLICADO (-30%)' : 'NÃO APLICADO'}\n> TEMPO A CUMPRIR: ${displayPenaFinal} ${!temBan ? "MESES" : ""}\n\nDATA: ${new Date().toLocaleString('pt-BR')}\n\`\`\``);
+    setRelatorioTexto(`\`\`\`md\n# REGISTRO DE OCORRência - LSPD\n\n[OFICIAL RESPONSÁVEL]: ${oficial || "N/A"}\n[INDIVÍDUO]: ${individuo || "N/A"}\n[LOCAL]: ${local || "N/A"}\n\n[CENÁRIO]:\n> VEÍCULO UTILIZADO: ${vehicleStr}\n> REFÉM NA AÇÃO: ${hostageStr}\n\n[APREENSÕES]:\n${itemsTxt}\n\n[IMPUTAÇÕES PENAIS]:\n${crimesTxt}\n\n[SENTENÇA FINAL]:\n> PENA TOTAL: ${displayPenaBase} ${!temBan ? "Meses" : ""}\n> MULTA: $${multaTotal.toLocaleString('pt-BR')}\n> FIANÇA: ${displayFianca}\n> ATENUANTE: ${reuPrimario && !temBan ? 'APLICADO (-30%)' : 'NÃO APLICADO'}\n> TEMPO A CUMPRIR: ${displayPenaFinal} ${!temBan ? "MESES" : ""}\n\nDATA: ${new Date().toLocaleString('pt-BR')}\n\`\`\``);
   };
 
   // --- ENVIO PARA O DISCORD (WEBHOOK COM EMBED E IMAGEM) ---
@@ -228,10 +251,10 @@ export default function CalculadoraPenal() {
     
     const formData = new FormData();
     
-    // Formatação do Embed do Discord
-    const embedCor = temBan ? 15548997 : 2064379; // Vermelho se BAN, Azul LSPD por padrão
-    const vehicleStr = temVeiculo ? `🚗 Sim (Placa: ${placa || 'N/A'})` : "Nenhum";
-    const hostageStr = temRefem ? `⚠️ Sim (Nome: ${nomeRefem || 'N/A'})` : "Nenhum";
+    const embedCor = temBan ? 15548997 : 2064379; 
+    
+    const vehicleStr = `🚗 **Veículo:** ${temVeiculo ? `Sim (Placa: ${placa || 'N/A'})` : "Não"}`;
+    const hostageStr = `⚠️ **Refém:** ${temRefem ? `Sim (Nome: ${nomeRefem || 'N/A'})` : "Não"}`;
     const itemsTxt = itens.length > 0 ? itens.map(i => `> • **${i.qtd}x** ${i.nome}`).join('\n') : "> Nenhuma apreensão registrada.";
     const crimesTxt = crimes.length > 0 ? crimes.map(c => `> • **${c.artigo}** - ${c.nome} (*${c.pena === 'BAN' ? 'BAN' : c.pena+'m'}*)`).join('\n') : "> Nenhum crime selecionado.";
 
@@ -256,7 +279,6 @@ export default function CalculadoraPenal() {
       timestamp: new Date().toISOString()
     };
 
-    // Se houver imagem, anexa ao FormData e vincula no Embed
     if (imagemEvidencia) {
       formData.append('file', imagemEvidencia, 'evidencia.png');
       embed.image = { url: 'attachment://evidencia.png' };
@@ -309,7 +331,6 @@ export default function CalculadoraPenal() {
           
           <div className="xl:col-span-5 space-y-6">
             
-            {/* DADOS E CENÁRIO */}
             <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl shadow-xl">
               <h3 className="text-xs font-black text-blue-500 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-800 pb-2">
                 <UserMinus size={16}/> Envolvidos e Local
@@ -317,7 +338,7 @@ export default function CalculadoraPenal() {
               <div className="space-y-4">
                 <div className="group">
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 group-focus-within:text-blue-400">Oficial Responsável (QRA)</label>
-                  <input type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all" value={oficial} onChange={e => setOficial(e.target.value)} placeholder="Ex: Cb. Walker" />
+                  <input type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all" value={oficial} onChange={e => setOficial(e.target.value)} placeholder="Ex: Tinga Tava" />
                 </div>
                 <div className="group">
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 group-focus-within:text-blue-400">Indivíduo Detido *</label>
@@ -325,7 +346,7 @@ export default function CalculadoraPenal() {
                 </div>
                 <div className="group">
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 group-focus-within:text-blue-400">Local da Abordagem (QTH)</label>
-                  <input type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all" value={local} onChange={e => setLocal(e.target.value)} placeholder="Ex: Praça Central" />
+                  <input type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all" value={local} onChange={e => setLocal(e.target.value)} placeholder="Ex: Praça" />
                 </div>
               </div>
             </div>
@@ -358,17 +379,25 @@ export default function CalculadoraPenal() {
               </div>
             </div>
 
-            {/* APREENSÕES E EVIDÊNCIA FOTOGRÁFICA */}
             <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl shadow-xl">
               <h3 className="text-xs font-black text-orange-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2">
                 <ShieldAlert size={16}/> Apreensões e Provas
               </h3>
               
-              {/* Adicionar Itens */}
               <div className="flex gap-2 mb-4">
-                <select className="flex-1 bg-slate-950/50 border border-slate-800 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-orange-500" value={itemSelecionado} onChange={e => setItemSelecionado(e.target.value)}>
-                  {ITENS_ILEGAIS.map(item => <option key={item} value={item}>{item}</option>)}
-                </select>
+                {/* CAMPO MODIFICADO AQUI - Input livre com Datalist */}
+                <input 
+                  type="text" 
+                  list="lista-itens-ilegais"
+                  className="flex-1 bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-orange-500 placeholder:text-slate-600 uppercase" 
+                  placeholder="Selecione ou digite um item..."
+                  value={itemSelecionado} 
+                  onChange={e => setItemSelecionado(e.target.value.toUpperCase())}
+                />
+                <datalist id="lista-itens-ilegais">
+                  {ITENS_ILEGAIS.map(item => <option key={item} value={item} />)}
+                </datalist>
+
                 <input type="number" min="1" className="w-20 bg-slate-950/50 border border-slate-800 rounded-xl px-3 py-2 text-white text-sm outline-none text-center" value={qtdItem} onChange={e => setQtdItem(parseInt(e.target.value) || 1)} />
                 <button onClick={handleAddItem} className="bg-orange-600 hover:bg-orange-500 text-white font-bold px-4 rounded-xl transition-colors">ADD</button>
               </div>
@@ -386,7 +415,6 @@ export default function CalculadoraPenal() {
                 )}
               </div>
 
-              {/* Upload de Imagem Discord */}
               <div className="border border-dashed border-slate-700 rounded-xl p-4 text-center hover:border-blue-500/50 transition-colors relative overflow-hidden group">
                 {previewImagem ? (
                   <div className="relative">
@@ -409,7 +437,6 @@ export default function CalculadoraPenal() {
 
           <div className="xl:col-span-7 space-y-6 flex flex-col">
             
-            {/* CRIMES E CÁLCULO (IGUAL À VERSÃO ANTERIOR) */}
             <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl shadow-xl relative z-20">
               <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2">
                 <Scale size={16}/> Adicionar Imputações Penais
@@ -516,7 +543,6 @@ export default function CalculadoraPenal() {
           </div>
         </div>
 
-        {/* --- RODAPÉ DE ENVIO --- */}
         <div className="mt-6 bg-slate-900/90 border border-slate-700 rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row gap-6 items-center backdrop-blur-xl">
           <div className="flex-1 w-full text-center md:text-left">
             <h3 className="text-lg font-black text-white uppercase tracking-widest flex items-center justify-center md:justify-start gap-2 mb-1">

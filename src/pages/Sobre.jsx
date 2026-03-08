@@ -24,20 +24,19 @@ export default function Sobre() {
         </div>
 
         {/* Estatísticas / Números (Estéticos para dar mais realismo) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-24">
-          {[
-            { icon: Clock, number: "24/7", label: "Prontidão Operacional" },
-            { icon: Users, number: "+150", label: "Oficiais na Ativa" },
-            { icon: Crosshair, number: "4", label: "Divisões de Elite" },
-            { icon: Shield, number: "100%", label: "Compromisso" }
-          ].map((stat, index) => (
-            <div key={index} className="bg-slate-900/40 border border-slate-800 backdrop-blur-md rounded-2xl p-6 text-center hover:bg-slate-900/60 hover:border-blue-500/30 transition-all duration-300">
-              <stat.icon className="w-8 h-8 text-blue-400 mx-auto mb-4 opacity-80" />
-              <div className="text-3xl font-extrabold text-white mb-1">{stat.number}</div>
-              <div className="text-sm text-slate-400 uppercase tracking-wider font-medium">{stat.label}</div>
-            </div>
-          ))}
-        </div>
+<div className="flex flex-wrap justify-center gap-6 mb-24">
+  {[
+    { icon: Clock, number: "24/7", label: "Prontidão Operacional" },
+    { icon: Crosshair, number: "4", label: "Unidades" },
+    { icon: Shield, number: "100%", label: "Compromisso" }
+  ].map((stat, index) => (
+    <div key={index} className="bg-slate-900/40 border border-slate-800 backdrop-blur-md rounded-2xl p-6 text-center hover:bg-slate-900/60 hover:border-blue-500/30 transition-all duration-300 min-w-[200px] flex-1 md:flex-none">
+      <stat.icon className="w-8 h-8 text-blue-400 mx-auto mb-4 opacity-80" />
+      <div className="text-3xl font-extrabold text-white mb-1">{stat.number}</div>
+      <div className="text-sm text-slate-400 uppercase tracking-wider font-medium">{stat.label}</div>
+    </div>
+  ))}
+</div>
 
         {/* Cards Missão, Visão, Valores */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
