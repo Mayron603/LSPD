@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Shield, Users, FileText, ClipboardList, Search, 
-  Briefcase, Crosshair, Crown, FileSignature, ShieldAlert, LogOut, User 
+  Briefcase, Crosshair, Crown, FileSignature, ShieldAlert, LogOut, Calculator 
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -14,6 +14,7 @@ export default function Navbar() {
     { name: 'Início', path: '/', icon: <Shield size={16} /> },
     { name: 'Sobre', path: '/sobre', icon: <Users size={16} /> },
     { name: 'Penal', path: '/codigo', icon: <FileText size={16} /> },
+    { name: 'Calculadora', path: '/calculadora', icon: <Calculator size={16} /> }, // <-- NOVO LINK
     { name: 'Oficiais', path: '/oficiais', icon: <ClipboardList size={16} /> },
     { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} /> },
     { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },

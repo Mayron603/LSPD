@@ -2,42 +2,43 @@ import clientPromise from './_lib/mongodb.js';
 import { ObjectId } from 'mongodb';
 
 export default async function handler(req, res) {
-  const client = await clientPromise;
-  const db = client.db("lspd_database");
-  const collection = db.collection("operacoes");
-
   try {
+    const client = await clientPromise;
+    const db = client.db("lspd_database"); 
+    const collection = db.collection("operacoes");
+
     if (req.method === 'GET') {
-      const ops = await collection.find({}).sort({ dataCriacao: -1 }).toArray();
-      return res.status(200).json(ops);
+      const operacoes = await collection.find({}).sort({ dataRegistro: -1 }).toArray();
+      return res.status(200).json(operacoes);
     }
 
     if (req.method === 'POST') {
-      const novaOp = {
-        ...req.body,
-        dataCriacao: new Date().toISOString(),
-        status: req.body.status || 'Planejada'
+      const novaOperacao = req.body;
+      
+      const operacaoParaInserir = {
+        ...novaOperacao,
+        dataRegistro: new Date().toISOString()
       };
-      const resultado = await collection.insertOne(novaOp);
-      return res.status(201).json({ ...novaOp, _id: resultado.insertedId });
+
+      const result = await collection.insertOne(operacaoParaInserir);
+      
+      return res.status(201).json({ 
+        success: true, 
+        id: result.insertedId 
+      });
     }
 
     if (req.method === 'DELETE') {
       const { id } = req.query;
       await collection.deleteOne({ _id: new ObjectId(id) });
-      return res.status(200).json({ message: 'Operação removida' });
+      return res.status(200).json({ success: true });
     }
-    
-    // Rota para atualizar Status (Concluir/Cancelar)
-    if (req.method === 'PUT') {
-        const { id, status } = req.body;
-        await collection.updateOne(
-            { _id: new ObjectId(id) },
-            { $set: { status: status } }
-        );
-        return res.status(200).json({ message: 'Status atualizado' });
-    }
+
+    res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
+    res.status(405).end(`Method ${req.method} Not Allowed`);
+
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    console.error("Erro na API de Operações:", error);
+    res.status(500).json({ error: 'Erro interno no servidor' });
   }
 }

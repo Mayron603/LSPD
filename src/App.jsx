@@ -8,11 +8,12 @@ import ControleOficiais from './pages/ControleOficiais';
 import BancoCriminal from './pages/BancoCriminal';
 import Investigacoes from './pages/Investigacoes';
 import Operacoes from './pages/Operacoes';
-import PainelComando from './pages/PainelComando';
+import PainelComando from './pages/PainelComando'; // Se usou o código do Alto Comando, pode renomear aqui se necessário
 import PorteArma from './pages/PorteArma';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
-import PainelAdmin from './pages/PainelAdmin'; // Nova página de Administração
+import PainelAdmin from './pages/PainelAdmin';
+import CalculadoraPenal from './pages/CalculadoraPenal'; // <-- NOVA PÁGINA IMPORTADA
 import './index.css';
 
 // Componente para proteger as rotas padrão (Qualquer um logado acessa)
@@ -68,6 +69,9 @@ function App() {
           <Route path="/operacoes" element={<RotaPrivada><Operacoes /></RotaPrivada>} />
           <Route path="/comando" element={<RotaPrivada><PainelComando /></RotaPrivada>} />
           <Route path="/porte-arma" element={<RotaPrivada><PorteArma /></RotaPrivada>} />
+          
+          {/* Nova Rota da Calculadora MDT */}
+          <Route path="/calculadora" element={<RotaPrivada><CalculadoraPenal /></RotaPrivada>} />
 
           {/* Rota Exclusiva de Administração */}
           <Route path="/admin" element={<RotaAdmin><PainelAdmin /></RotaAdmin>} />
