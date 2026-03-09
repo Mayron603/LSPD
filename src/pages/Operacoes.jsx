@@ -3,7 +3,7 @@ import {
   Crosshair, Map, Plus, Users, Clock, XCircle, 
   Trash2, Shield, Terminal, Activity, Radar, Target, 
   ChevronRight, FileText, Brain, AlertTriangle, 
-  CheckSquare, FileImage, ShieldAlert, Cross
+  CheckSquare, FileImage, ShieldAlert
 } from 'lucide-react';
 
 export default function Operacoes() {
@@ -133,15 +133,23 @@ export default function Operacoes() {
                   <div className="p-8 flex-1">
                     <div className="flex justify-between items-start mb-6">
                       <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black border uppercase tracking-widest flex items-center gap-1.5 ${getStatusColor(op.status)}`}>
-                        <Activity size={12} /> {op.status}
+                        <Activity size={12} /> STATUS: {op.status}
                       </span>
                       <button onClick={() => handleExcluir(op._id)} className="text-slate-600 hover:text-red-500 bg-slate-950 hover:bg-red-950/50 p-2 rounded-lg transition-colors">
                         <Trash2 size={16} />
                       </button>
                     </div>
                     
-                    <p className="text-emerald-500 text-[10px] font-mono uppercase tracking-widest mb-1">{op.codigo || 'OP-XXX'}</p>
-                    <h3 className="text-2xl font-black text-white mb-4 uppercase tracking-tight group-hover:text-emerald-400 transition-colors line-clamp-2 leading-tight">
+                    {/* RÓTULOS ADICIONADOS AQUI */}
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <Radar size={10} /> Código da Operação
+                    </p>
+                    <p className="text-emerald-500 text-sm font-mono uppercase tracking-widest mb-3">{op.codigo || 'OP-XXX'}</p>
+                    
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <Target size={10} /> Nome da Operação
+                    </p>
+                    <h3 className="text-2xl font-black text-white mb-6 uppercase tracking-tight group-hover:text-emerald-400 transition-colors line-clamp-2 leading-tight">
                       {op.nome}
                     </h3>
                     
@@ -190,19 +198,25 @@ export default function Operacoes() {
                 <div className="absolute right-0 top-0 opacity-5 pointer-events-none"><FileText size={250} className="-mt-16 -mr-10 text-white"/></div>
                 
                 <div className="relative z-10 w-full">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                     <div className="flex items-center gap-3">
                       <span className={`px-3 py-1 rounded-lg text-[10px] font-black border uppercase tracking-widest inline-flex items-center gap-1.5 ${getStatusColor(operacaoSelecionada.status)}`}>
-                        <Activity size={12} /> {operacaoSelecionada.status}
+                        <Activity size={12} /> STATUS: {operacaoSelecionada.status}
                       </span>
-                      <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-lg text-[10px] font-mono uppercase tracking-widest border border-slate-700">
-                        {operacaoSelecionada.codigo || 'OP-XXX'}
+                      {/* RÓTULO DO CÓDIGO AQUI */}
+                      <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-lg text-[10px] font-mono uppercase tracking-widest border border-slate-700 flex items-center gap-1">
+                        <Radar size={12}/> CÓDIGO: {operacaoSelecionada.codigo || 'OP-XXX'}
                       </span>
                     </div>
                     <button onClick={() => setOperacaoSelecionada(null)} className="text-slate-500 hover:text-white bg-slate-800/50 hover:bg-slate-800 p-2 rounded-full transition-colors self-end md:self-auto">
                       <XCircle size={28} />
                     </button>
                   </div>
+                  
+                  {/* RÓTULO DO NOME AQUI */}
+                  <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                    <Target size={12} /> Nome da Operação
+                  </p>
                   <h2 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter">
                       {operacaoSelecionada.nome}
                   </h2>
