@@ -68,7 +68,6 @@ function AppContent() {
           <Route path="/investigacoes" element={<RotaPrivada><Investigacoes /></RotaPrivada>} />
           <Route path="/operacoes" element={<RotaPrivada><Operacoes /></RotaPrivada>} />
           <Route path="/comando" element={<RotaPrivada><PainelComando /></RotaPrivada>} />
-          <Route path="/porte-arma" element={<RotaPrivada><PorteArma /></RotaPrivada>} />
           <Route path="/calculadora" element={<RotaPrivada><CalculadoraPenal /></RotaPrivada>} />
 
           <Route path="/admin" element={<RotaAdmin><PainelAdmin /></RotaAdmin>} />
