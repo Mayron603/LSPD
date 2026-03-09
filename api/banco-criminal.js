@@ -1,7 +1,12 @@
 import clientPromise from './_lib/mongodb.js';
 import { ObjectId } from 'mongodb';
+import { verificarToken } from './_lib/auth.js'; // <-- IMPORTAÇÃO DO GUARDIÃO
 
 export default async function handler(req, res) {
+  // BLINDAGEM MÁXIMA: Verifica o crachá digital antes de qualquer coisa
+  const usuarioLogado = verificarToken(req, res);
+  if (!usuarioLogado) return; // Se for nulo, o guardião já enviou a mensagem de erro (401) e aborta
+
   try {
     const client = await clientPromise;
     const db = client.db("lspd_database"); 
