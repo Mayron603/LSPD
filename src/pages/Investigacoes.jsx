@@ -2,23 +2,26 @@ import { useState, useEffect } from 'react';
 import { 
   Briefcase, Users, Target, Clock, AlertCircle, 
   Plus, Search, FileText, ChevronRight, Edit, CheckSquare,
-  MapPin, Car, Save, ArrowLeft, Trash2, Camera
+  MapPin, Car, Save, ArrowLeft, Trash2, Camera, Shield, UserX, Fingerprint, History
 } from 'lucide-react';
 
 const ESTADO_INICIAL_FORMULARIO = {
   nome: '', tipo: '', descricao: '', local: '', detalhesLocal: '', 
   veiculos: '', armas: '', suspeitos: '', evidencias: '', conclusao: '',
-  prioridade: 'Média', status: 'Em investigação', progresso: 10,
-  investigador: JSON.parse(localStorage.getItem('usuario') || '{}').nome || 'Sistema'
+  prioridade: 'Média', status: 'Em investigação', progresso: 0,
+  investigador: JSON.parse(localStorage.getItem('usuario') || '{}').nome || 'Agente FIB',
+  diligencias: [], // NOVO: Checklist de tarefas
+  novoEventoTimeline: '' // Usado apenas no frontend para adicionar à timeline
 };
 
 export default function Investigacoes() {
-  const [view, setView] = useState('lista'); // 'lista', 'detalhes', 'formulario'
+  const [view, setView] = useState('lista'); 
   const [selectedCase, setSelectedCase] = useState(null);
   const [casos, setCasos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(ESTADO_INICIAL_FORMULARIO);
+  const [diligenciaInput, setDiligenciaInput] = useState('');
 
   const fetchCasos = async () => {
     setLoading(true);
@@ -42,7 +45,11 @@ export default function Investigacoes() {
 
   const handleOpenFormulario = (casoEdit = null) => {
     if (casoEdit) {
-      setFormData(casoEdit);
+      setFormData({
+        ...casoEdit,
+        diligencias: casoEdit.diligencias || [],
+        novoEventoTimeline: ''
+      });
       setIsEditing(true);
     } else {
       setFormData(ESTADO_INICIAL_FORMULARIO);
@@ -51,17 +58,59 @@ export default function Investigacoes() {
     setView('formulario');
   };
 
+  // Funções do novo sistema de Diligências (Tarefas)
+  const addDiligencia = () => {
+    if (!diligenciaInput.trim()) return;
+    const novasDiligencias = [...formData.diligencias, { id: Date.now(), texto: diligenciaInput, concluida: false }];
+    setFormData({ ...formData, diligencias: novasDiligencias, progresso: calcularProgresso(novasDiligencias) });
+    setDiligenciaInput('');
+  };
+
+  const toggleDiligencia = (id) => {
+    const novasDiligencias = formData.diligencias.map(d => 
+      d.id === id ? { ...d, concluida: !d.concluida } : d
+    );
+    setFormData({ ...formData, diligencias: novasDiligencias, progresso: calcularProgresso(novasDiligencias) });
+  };
+
+  const removerDiligencia = (id) => {
+    const novasDiligencias = formData.diligencias.filter(d => d.id !== id);
+    setFormData({ ...formData, diligencias: novasDiligencias, progresso: calcularProgresso(novasDiligencias) });
+  };
+
+  const calcularProgresso = (diligencias) => {
+    if (!diligencias || diligencias.length === 0) return formData.progresso; // Mantém manual se não houver checklist
+    const concluidas = diligencias.filter(d => d.concluida).length;
+    return Math.round((concluidas / diligencias.length) * 100);
+  };
+
   const handleSalvar = async (e) => {
     e.preventDefault();
     try {
       const url = '/api/investigacoes';
       const method = isEditing ? 'PUT' : 'POST';
       
-      const payload = isEditing ? formData : {
+      let timelineAtualizada = formData.timeline || [];
+      
+      // Cria a timeline inicial no POST
+      if (!isEditing) {
+        timelineAtualizada = [{ data: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR').slice(0,5), evento: "Inquérito Federal Aberto" }];
+      } 
+      // Adiciona novo evento se estiver editando e o campo foi preenchido
+      else if (formData.novoEventoTimeline.trim() !== '') {
+        timelineAtualizada = [
+          { data: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR').slice(0,5), evento: formData.novoEventoTimeline },
+          ...timelineAtualizada
+        ];
+      }
+
+      const payload = {
         ...formData,
-        id: `CASE-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
-        timeline: [{ data: new Date().toLocaleDateString('pt-BR'), evento: "Investigação Iniciada" }]
+        timeline: timelineAtualizada,
+        id: isEditing ? formData.id : `FIB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
       };
+      
+      delete payload.novoEventoTimeline; // Limpa para não salvar lixo no banco
 
       const res = await fetch(url, {
         method,
@@ -70,18 +119,23 @@ export default function Investigacoes() {
       });
 
       if (res.ok) {
-        setView('lista');
+        if (isEditing) {
+          const dadosAtualizados = await fetch('/api/investigacoes').then(r => r.json());
+          setSelectedCase(dadosAtualizados.find(c => c._id === formData._id));
+          setView('detalhes');
+        } else {
+          setView('lista');
+        }
         fetchCasos();
-        setFormData(ESTADO_INICIAL_FORMULARIO);
       }
     } catch (err) {
-      alert("Erro ao salvar no banco de dados");
+      alert("Erro ao salvar no banco de dados da FIB");
     }
   };
 
   const handleExcluir = async (id, e) => {
     if(e) e.stopPropagation();
-    if (confirm("Deseja arquivar este dossiê permanentemente?")) {
+    if (confirm("AUTORIZAÇÃO FEDERAL EXIGIDA: Deseja apagar este dossiê permanentemente da rede?")) {
       await fetch(`/api/investigacoes?id=${id}`, { method: 'DELETE' });
       fetchCasos();
       if (view === 'detalhes') setView('lista');
@@ -89,83 +143,105 @@ export default function Investigacoes() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 pt-32 pb-20 text-slate-50 font-sans">
-      <div className="max-w-6xl mx-auto px-4">
+    <div className="min-h-screen bg-slate-950 pt-32 pb-20 text-slate-50 font-sans relative overflow-hidden">
+      
+      {/* Luzes Estilo Inteligência (Cyan/Azul Profundo) */}
+      <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-cyan-900/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-blue-900/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
+
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 relative z-10">
         
         {/* Cabeçalho */}
         <div className="flex flex-col md:flex-row justify-between md:items-end mb-8 border-b border-slate-800 pb-6 gap-4">
           <div>
-            <h1 className="text-4xl font-black text-white uppercase flex items-center gap-3 tracking-tighter">
-              <Briefcase className="text-blue-500" size={36} /> 
-              {view === 'lista' ? 'Investigações (FIB)' : view === 'detalhes' ? 'Dossiê ' + selectedCase.id : isEditing ? 'Editar Dossiê' : 'Novo Registro'}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/30 border border-cyan-900/50 text-cyan-400 text-xs font-mono mb-4">
+              <Shield size={12} />
+              <span>TERMINAL FIB // BUREAU DE INVESTIGAÇÕES</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-black text-white uppercase flex items-center gap-4 tracking-tighter">
+              <div className="p-3 bg-cyan-600/10 rounded-xl border border-cyan-500/20">
+                <Briefcase className="text-cyan-500" size={32} /> 
+              </div>
+              {view === 'lista' ? 'Central de Inquéritos' : view === 'detalhes' ? 'Dossiê ' + selectedCase.id : isEditing ? 'Editar Dossiê' : 'Novo Inquérito'}
             </h1>
-            <p className="text-slate-400 mt-1">
-              {view === 'lista' ? 'Central de Inteligência Policial.' : 'Restrito: Apenas pessoal autorizado do FIB.'}
-            </p>
           </div>
           
           {view !== 'lista' && (
             <div className="flex gap-3">
               {view === 'detalhes' && (
-                <button onClick={() => handleOpenFormulario(selectedCase)} className="bg-yellow-600/20 text-yellow-500 border border-yellow-500/50 hover:bg-yellow-600 hover:text-white px-4 py-2 rounded-lg font-bold uppercase text-xs flex items-center gap-2 transition-all">
-                  <Edit size={16} /> Editar Caso
+                <button onClick={() => handleOpenFormulario(selectedCase)} className="bg-cyan-900/20 text-cyan-500 border border-cyan-500/50 hover:bg-cyan-600 hover:text-white px-5 py-2.5 rounded-lg font-black uppercase tracking-widest text-xs flex items-center gap-2 transition-all">
+                  <Edit size={16} /> Atualizar Caso
                 </button>
               )}
-              <button onClick={() => setView('lista')} className="bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white px-4 py-2 rounded-lg font-bold uppercase text-xs flex items-center gap-2 transition-all">
-                <ArrowLeft size={16} /> Voltar
+              <button onClick={() => setView('lista')} className="bg-slate-900 border border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white px-5 py-2.5 rounded-lg font-black uppercase tracking-widest text-xs flex items-center gap-2 transition-all">
+                <ArrowLeft size={16} /> Voltar ao Arquivo
               </button>
             </div>
           )}
         </div>
 
-        {/* 1. LISTA DE INVESTIGAÇÕES */}
+        {/* --- 1. LISTA DE INVESTIGAÇÕES --- */}
         {view === 'lista' && (
           <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                <input type="text" placeholder="Buscar caso por nome ou tipo..." className="w-full bg-slate-900 border border-slate-800 rounded-lg py-3 pl-12 outline-none focus:border-blue-500" />
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1 group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-xl blur opacity-10 group-hover:opacity-20 transition duration-500"></div>
+                <div className="relative bg-slate-900 border border-slate-700/50 rounded-xl flex items-center shadow-xl">
+                  <Search className="absolute left-4 text-cyan-500" size={20} />
+                  <input type="text" placeholder="Buscar dossiê por alvo, tipo ou ID..." className="w-full bg-transparent border-none py-4 pl-12 pr-4 text-white placeholder:text-slate-500 focus:ring-0 outline-none" />
+                </div>
               </div>
-              <button onClick={() => handleOpenFormulario()} className="bg-blue-600 hover:bg-blue-500 px-6 rounded-lg font-bold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(37,99,235,0.4)]">
-                <Plus size={18} /> ABRIR NOVO CASO
+              <button onClick={() => handleOpenFormulario()} className="bg-cyan-600 hover:bg-cyan-500 text-white px-8 rounded-xl font-black tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(8,145,178,0.4)] hover:shadow-[0_0_25px_rgba(8,145,178,0.6)]">
+                <Plus size={18} /> Iniciar Investigação
               </button>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
               <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-slate-950/50 text-slate-500 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
+                <thead className="bg-slate-950/80 text-cyan-500 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
                   <tr>
-                    <th className="px-6 py-4">Dossiê / Tipo</th>
-                    <th className="px-6 py-4">Investigador Responsável</th>
-                    <th className="px-6 py-4">Status / Progresso</th>
-                    <th className="px-6 py-4 text-right">Ações</th>
+                    <th className="px-6 py-5">Código / Alvo (Operação)</th>
+                    <th className="px-6 py-5">Agente Encarregado</th>
+                    <th className="px-6 py-5">Status Operacional</th>
+                    <th className="px-6 py-5 text-right">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-slate-800/50">
                   {loading ? (
-                    <tr><td colSpan="4" className="p-10 text-center text-slate-500 font-bold animate-pulse">Acessando arquivos confidenciais...</td></tr>
+                     <tr><td colSpan="4" className="p-16 text-center text-cyan-500 font-mono text-sm tracking-widest uppercase animate-pulse">Acessando mainframe do bureau...</td></tr>
                   ) : casos.length === 0 ? (
-                    <tr><td colSpan="4" className="p-10 text-center text-slate-500">Nenhuma investigação em andamento.</td></tr>
+                    <tr><td colSpan="4" className="p-16 text-center text-slate-500 font-mono">NENHUM INQUÉRITO FEDERAL ATIVO.</td></tr>
                   ) : casos.map((c) => (
-                    <tr key={c._id} className="hover:bg-slate-800/50 transition-colors group cursor-pointer" onClick={() => handleOpenCase(c)}>
+                    <tr key={c._id} className="hover:bg-cyan-950/10 transition-colors group cursor-pointer" onClick={() => handleOpenCase(c)}>
                       <td className="px-6 py-4">
-                        <div className="font-bold text-white uppercase text-base group-hover:text-blue-400">{c.nome}</div>
-                        <div className="text-[10px] text-blue-500 uppercase font-black tracking-tighter mt-0.5">{c.id} • {c.tipo}</div>
+                        <div className="font-black text-white uppercase text-base tracking-tight group-hover:text-cyan-400">{c.nome}</div>
+                        <div className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-1 flex items-center gap-2">
+                          <span className="text-cyan-500 font-mono">{c.id}</span> • {c.tipo}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 text-slate-400 font-medium">{c.investigador}</td>
                       <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1">
-                          <span className={`text-[10px] px-2 py-0.5 rounded font-black border uppercase w-fit ${c.status === 'Concluído' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'}`}>{c.status}</span>
-                          <div className="w-32 bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800 mt-1">
-                            <div className="bg-blue-600 h-full" style={{ width: `${c.progresso || 0}%` }}></div>
+                        <div className="flex items-center gap-2 text-slate-300 font-bold text-xs uppercase tracking-wider">
+                           <UserX size={14} className="text-slate-500"/> {c.investigador}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1.5 w-40">
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-black border uppercase w-fit tracking-widest ${c.status === 'Concluído' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : c.status === 'Congelado (Cold Case)' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'}`}>
+                            {c.status}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800">
+                              <div className={`h-full ${c.status === 'Concluído' ? 'bg-emerald-500' : 'bg-cyan-500'}`} style={{ width: `${c.progresso || 0}%` }}></div>
+                            </div>
+                            <span className="text-[9px] font-black text-slate-400">{c.progresso || 0}%</span>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button onClick={(e) => handleExcluir(c._id, e)} className="p-2 bg-slate-950 hover:bg-red-600 border border-slate-800 text-slate-500 hover:text-white rounded-lg transition-all mr-2">
+                        <button onClick={(e) => handleExcluir(c._id, e)} className="p-2.5 bg-slate-950/50 border border-slate-800 hover:border-red-500/50 text-slate-500 hover:text-red-500 hover:bg-red-950/30 rounded-lg transition-all mr-2">
                            <Trash2 size={16} />
                         </button>
-                        <button className="p-2 bg-slate-950 border border-slate-800 text-slate-500 group-hover:text-blue-400 group-hover:border-blue-900 rounded-lg transition-all">
+                        <button className="p-2.5 bg-slate-950/50 border border-slate-800 text-slate-500 group-hover:text-cyan-400 group-hover:border-cyan-900/50 rounded-lg transition-all">
                            <ChevronRight size={16} />
                         </button>
                       </td>
@@ -177,154 +253,221 @@ export default function Investigacoes() {
           </div>
         )}
 
-        {/* 2. DETALHES DO CASO */}
+        {/* --- 2. DETALHES DO CASO (DOSSIÊ FIB) --- */}
         {view === 'detalhes' && selectedCase && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-right-4">
             
             <div className="lg:col-span-8 space-y-6">
+              
               {/* Relatório Principal */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-                <div className="absolute right-0 top-0 opacity-5 pointer-events-none"><Briefcase size={200} className="-mt-10 -mr-10"/></div>
-                <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-1 relative z-10">{selectedCase.nome}</h2>
-                <p className="text-blue-500 font-black tracking-widest text-xs uppercase mb-6 relative z-10">TIPO DE CRIME: {selectedCase.tipo}</p>
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+                <div className="absolute right-0 top-0 opacity-5 pointer-events-none"><Fingerprint size={250} className="-mt-10 -mr-10"/></div>
                 
-                <h3 className="text-xs font-black text-slate-500 uppercase mb-2">Relatório do Investigador</h3>
-                <p className="text-slate-300 leading-relaxed font-mono bg-slate-950/50 p-4 rounded-xl border border-slate-800 relative z-10 whitespace-pre-wrap">
-                  {selectedCase.descricao || 'Sem descrição.'}
+                <div className="flex gap-2 mb-4 relative z-10">
+                  <span className="bg-red-900/20 text-red-500 border border-red-500/30 px-3 py-1 rounded text-[10px] font-black tracking-widest uppercase">Nível de Sigilo: Alto</span>
+                  <span className="bg-slate-800 text-cyan-400 border border-slate-700 px-3 py-1 rounded text-[10px] font-mono tracking-widest uppercase">{selectedCase.id}</span>
+                </div>
+
+                <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-2 relative z-10">{selectedCase.nome}</h2>
+                <div className="flex gap-4 mb-8 border-b border-slate-800 pb-4 relative z-10">
+                  <p className="text-cyan-500 font-bold tracking-widest text-xs uppercase flex items-center gap-1.5"><Target size={14}/> TIPO: {selectedCase.tipo}</p>
+                  <p className="text-slate-400 font-bold tracking-widest text-xs uppercase flex items-center gap-1.5"><UserX size={14}/> AGENTE: {selectedCase.investigador}</p>
+                </div>
+                
+                <h3 className="text-xs font-black text-slate-500 uppercase mb-3 tracking-widest flex items-center gap-2"><FileText size={16}/> Resumo Executivo dos Fatos</h3>
+                <p className="text-slate-300 leading-relaxed font-mono bg-slate-950/50 p-5 rounded-2xl border border-slate-800 relative z-10 whitespace-pre-wrap text-sm">
+                  {selectedCase.descricao || 'Sem descrição inserida.'}
                 </p>
               </div>
 
-              {/* Informações Inteligência */}
+              {/* Grid de Inteligência */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                  <h3 className="text-xs font-black text-red-500 uppercase mb-4 flex items-center gap-2"><Target size={16}/> Suspeitos Identificados</h3>
-                  <p className="text-sm text-slate-300 whitespace-pre-wrap bg-slate-950/50 p-3 rounded-lg border border-red-900/30">{selectedCase.suspeitos || 'Nenhum suspeito catalogado.'}</p>
+                
+                {/* Checklists (Diligências) */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl lg:col-span-2">
+                  <h3 className="text-xs font-black text-cyan-500 uppercase mb-4 flex items-center gap-2 tracking-widest border-b border-slate-800 pb-3"><CheckSquare size={16}/> Diligências e Tarefas ({selectedCase.diligencias?.length || 0})</h3>
+                  {selectedCase.diligencias && selectedCase.diligencias.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {selectedCase.diligencias.map(dil => (
+                        <div key={dil.id} className={`p-3 rounded-xl border flex items-start gap-3 text-sm ${dil.concluida ? 'bg-emerald-950/20 border-emerald-900/50 text-emerald-400' : 'bg-slate-950/50 border-slate-800 text-slate-300'}`}>
+                          <div className={`mt-0.5 w-4 h-4 rounded-sm flex items-center justify-center border shrink-0 ${dil.concluida ? 'bg-emerald-500 border-emerald-500 text-slate-950' : 'border-slate-600'}`}>
+                            {dil.concluida && <CheckSquare size={12} strokeWidth={4} />}
+                          </div>
+                          <span className={dil.concluida ? 'line-through opacity-70' : ''}>{dil.texto}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500 italic bg-slate-950/50 p-4 rounded-xl border border-slate-800 text-center">Nenhuma diligência registrada para este inquérito.</p>
+                  )}
                 </div>
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                  <h3 className="text-xs font-black text-emerald-500 uppercase mb-4 flex items-center gap-2"><Camera size={16}/> Evidências</h3>
-                  <p className="text-sm text-slate-300 whitespace-pre-wrap bg-slate-950/50 p-3 rounded-lg border border-emerald-900/30">{selectedCase.evidencias || 'Nenhuma evidência coletada.'}</p>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                  <h3 className="text-xs font-black text-red-500 uppercase mb-4 flex items-center gap-2 tracking-widest"><Users size={16}/> Suspeitos & Organizações</h3>
+                  <p className="text-sm text-slate-300 whitespace-pre-wrap bg-red-950/10 p-4 rounded-xl border border-red-900/30 leading-relaxed font-mono">{selectedCase.suspeitos || 'Nenhum alvo identificado.'}</p>
                 </div>
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                  <h3 className="text-xs font-black text-slate-500 uppercase mb-4 flex items-center gap-2"><MapPin size={16}/> Localização e Rastreio</h3>
-                  <p className="text-sm font-bold text-white mb-1">{selectedCase.local || 'Desconhecido'}</p>
-                  <p className="text-xs text-slate-400">{selectedCase.detalhesLocal}</p>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                  <h3 className="text-xs font-black text-emerald-500 uppercase mb-4 flex items-center gap-2 tracking-widest"><Camera size={16}/> Provas e Evidências</h3>
+                  <p className="text-sm text-slate-300 whitespace-pre-wrap bg-emerald-950/10 p-4 rounded-xl border border-emerald-900/30 leading-relaxed font-mono">{selectedCase.evidencias || 'Nenhuma prova material coletada.'}</p>
                 </div>
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                  <h3 className="text-xs font-black text-slate-500 uppercase mb-4 flex items-center gap-2"><Car size={16}/> Frota / Armamento Envolvido</h3>
-                  <p className="text-sm text-slate-300 mb-2 border-b border-slate-800 pb-2"><span className="text-slate-500 font-bold text-[10px] uppercase block">Veículos</span> {selectedCase.veiculos || 'N/A'}</p>
-                  <p className="text-sm text-slate-300"><span className="text-slate-500 font-bold text-[10px] uppercase block">Armas</span> {selectedCase.armas || 'N/A'}</p>
+                
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl lg:col-span-2 flex flex-col sm:flex-row gap-6">
+                  <div className="flex-1">
+                    <h3 className="text-xs font-black text-slate-500 uppercase mb-3 flex items-center gap-2 tracking-widest"><MapPin size={16}/> Localização</h3>
+                    <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                      <p className="text-sm font-bold text-white mb-1">{selectedCase.local || 'Desconhecido'}</p>
+                      <p className="text-xs text-slate-400">{selectedCase.detalhesLocal}</p>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xs font-black text-slate-500 uppercase mb-3 flex items-center gap-2 tracking-widest"><Car size={16}/> Logística (Armas/Veículos)</h3>
+                    <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 space-y-2">
+                      <p className="text-sm text-slate-300"><span className="text-slate-500 font-black text-[10px] uppercase block tracking-widest">Veículos Rastreáveis</span> {selectedCase.veiculos || 'N/A'}</p>
+                      <p className="text-sm text-slate-300"><span className="text-slate-500 font-black text-[10px] uppercase block tracking-widest">Balística / Armas</span> {selectedCase.armas || 'N/A'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Conclusão Final */}
+              {/* Conclusão */}
               {selectedCase.conclusao && (
-                <div className="bg-indigo-950/20 border border-indigo-900/50 rounded-2xl p-6">
-                   <h3 className="text-xs font-black text-indigo-400 uppercase mb-4 flex items-center gap-2"><CheckSquare size={16}/> Conclusão do Dossiê</h3>
-                   <p className="text-sm text-indigo-100/80 whitespace-pre-wrap font-mono">{selectedCase.conclusao}</p>
+                <div className="bg-cyan-950/20 border border-cyan-900/50 rounded-3xl p-8 shadow-xl relative overflow-hidden">
+                   <div className="absolute right-0 top-0 opacity-10"><Shield size={150} className="-mt-10 -mr-10 text-cyan-500"/></div>
+                   <h3 className="text-xs font-black text-cyan-400 uppercase mb-4 flex items-center gap-2 tracking-widest relative z-10"><CheckSquare size={16}/> Relatório de Fechamento do Inquérito</h3>
+                   <p className="text-sm text-cyan-100/80 whitespace-pre-wrap font-mono relative z-10 bg-slate-950/40 p-5 rounded-2xl border border-cyan-900/30 leading-relaxed">{selectedCase.conclusao}</p>
                 </div>
               )}
             </div>
 
             <div className="lg:col-span-4 space-y-6">
-              {/* Painel de Controle */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl text-center">
-                <h3 className="text-xs font-black text-slate-500 uppercase mb-4 tracking-widest">Resolução do Caso</h3>
-                <div className="w-32 h-32 mx-auto rounded-full border-8 border-slate-800 flex items-center justify-center relative shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] mb-4">
-                  <span className="text-3xl font-black text-blue-500">{selectedCase.progresso}%</span>
+              {/* Painel de Status */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl text-center relative overflow-hidden">
+                <h3 className="text-xs font-black text-slate-500 uppercase mb-6 tracking-widest">Resolução do Inquérito</h3>
+                <div className="w-40 h-40 mx-auto rounded-full border-[10px] border-slate-800 flex items-center justify-center relative shadow-[inset_0_0_30px_rgba(0,0,0,0.5)] mb-6 bg-slate-950">
+                  <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="#1e293b" strokeWidth="10" />
+                    <circle cx="50" cy="50" r="40" fill="transparent" stroke={selectedCase.status === 'Concluído' ? '#10b981' : '#06b6d4'} strokeWidth="10" strokeDasharray="251.2" strokeDashoffset={251.2 - (251.2 * (selectedCase.progresso || 0)) / 100} className="transition-all duration-1000 ease-out" />
+                  </svg>
+                  <span className="text-4xl font-black text-white">{selectedCase.progresso || 0}<span className="text-xl text-slate-500">%</span></span>
                 </div>
-                <div className={`px-4 py-2 rounded-lg font-black border uppercase tracking-widest text-xs inline-block ${selectedCase.status === 'Concluído' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'}`}>
+                <div className={`px-5 py-2.5 rounded-xl font-black border uppercase tracking-widest text-xs inline-block shadow-lg ${selectedCase.status === 'Concluído' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : selectedCase.status === 'Congelado (Cold Case)' ? 'bg-slate-500/10 text-slate-400 border-slate-500/30' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'}`}>
                   {selectedCase.status}
                 </div>
               </div>
 
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-                <h3 className="text-xs font-black text-slate-500 uppercase mb-6 flex items-center gap-2 tracking-widest"><Clock size={16}/> Histórico Registrado</h3>
-                <div className="space-y-4">
+              {/* Linha do Tempo */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
+                <h3 className="text-xs font-black text-slate-500 uppercase mb-6 flex items-center gap-2 tracking-widest"><History size={16}/> Histórico Registrado</h3>
+                <div className="space-y-5">
                   {selectedCase.timeline?.map((t, i) => (
-                    <div key={i} className="border-l-2 border-blue-600 pl-4 py-1 relative">
-                      <div className="absolute w-2 h-2 bg-blue-600 rounded-full -left-[5px] top-1.5"></div>
-                      <p className="text-[10px] font-black text-blue-500 uppercase">{t.data}</p>
-                      <p className="text-sm text-slate-300 leading-tight mt-1">{t.evento}</p>
+                    <div key={i} className="border-l-2 border-cyan-600 pl-5 py-1 relative">
+                      <div className="absolute w-3 h-3 bg-cyan-600 rounded-full -left-[7px] top-1 border-[3px] border-slate-900"></div>
+                      <p className="text-[9px] font-black text-cyan-500 uppercase tracking-widest mb-1">{t.data}</p>
+                      <p className="text-sm text-slate-300 leading-snug">{t.evento}</p>
                     </div>
                   ))}
                 </div>
               </div>
-
-              <button onClick={() => handleExcluir(selectedCase._id)} className="w-full flex items-center justify-center gap-2 bg-red-950/30 border border-red-900/50 text-red-500 hover:bg-red-600 hover:text-white py-4 rounded-xl font-black uppercase tracking-widest transition-all">
-                <Trash2 size={18} /> Arquivar Definitivamente
-              </button>
             </div>
           </div>
         )}
 
-        {/* 3. FORMULÁRIO (NOVO / EDITAR) */}
+        {/* --- 3. FORMULÁRIO (NOVO / EDITAR) --- */}
         {view === 'formulario' && (
-          <form onSubmit={handleSalvar} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-10 shadow-2xl animate-in slide-in-from-bottom-4">
+          <form onSubmit={handleSalvar} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-10 shadow-2xl animate-in slide-in-from-bottom-4 relative overflow-hidden">
             
-            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-blue-500 border-b border-slate-800 pb-3 tracking-widest">
-              <FileText size={18} /> A. Informações Essenciais
+            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-cyan-500 border-b border-slate-800 pb-3 tracking-widest">
+              <FileText size={18} /> A. Base do Inquérito
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
               <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Nome da Operação/Dossiê *</label>
-                <input required className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" 
-                  value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} />
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Nome da Operação / Dossiê *</label>
+                <input required className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-cyan-500 outline-none transition-all" 
+                  value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} placeholder="Ex: Operação Valkyrie" />
               </div>
               <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Tipologia Criminal *</label>
-                <input required className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none"
-                  value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value})} placeholder="Ex: Tráfico, Homicídio..." />
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Tipologia Criminal *</label>
+                <input required className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-cyan-500 outline-none transition-all"
+                  value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value})} placeholder="Ex: Tráfico Internacional, Homicídio..." />
               </div>
               <div className="group md:col-span-2">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Resumo dos Fatos *</label>
-                <textarea required rows="3" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none resize-none"
-                  value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} />
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Resumo Inicial dos Fatos *</label>
+                <textarea required rows="4" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-cyan-500 outline-none resize-none transition-all font-mono text-sm"
+                  value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} placeholder="Descreva os fatos que motivaram a abertura deste inquérito..." />
               </div>
             </div>
 
-            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-emerald-500 border-b border-slate-800 pb-3 tracking-widest mt-10">
-              <Search size={18} /> B. Dados de Inteligência (Opcional)
+            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-emerald-500 border-b border-slate-800 pb-3 tracking-widest">
+              <CheckSquare size={18} /> B. Plano de Ação (Diligências)
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Local Primário</label>
-                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none"
-                  value={formData.local} onChange={e => setFormData({...formData, local: e.target.value})} />
+            <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-6 mb-10">
+              <p className="text-xs text-slate-400 mb-4 font-mono">Adicione tarefas investigativas. A % do caso subirá automaticamente ao marcá-las como concluídas.</p>
+              
+              <div className="flex gap-3 mb-6">
+                <input type="text" className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none text-sm" placeholder="Ex: Solicitar quebra de sigilo bancário..." value={diligenciaInput} onChange={(e) => setDiligenciaInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addDiligencia())} />
+                <button type="button" onClick={addDiligencia} className="bg-emerald-900/30 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-600 hover:text-white px-6 rounded-xl font-bold uppercase tracking-widest text-xs transition-all">Adicionar</button>
               </div>
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Detalhes do Local</label>
-                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none"
-                  value={formData.detalhesLocal} onChange={e => setFormData({...formData, detalhesLocal: e.target.value})} />
-              </div>
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Suspeitos Identificados</label>
-                <textarea rows="2" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none resize-none"
-                  value={formData.suspeitos} onChange={e => setFormData({...formData, suspeitos: e.target.value})} />
-              </div>
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Evidências Coletadas</label>
-                <textarea rows="2" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none resize-none"
-                  value={formData.evidencias} onChange={e => setFormData({...formData, evidencias: e.target.value})} />
-              </div>
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Veículos Rastreáveis</label>
-                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none"
-                  value={formData.veiculos} onChange={e => setFormData({...formData, veiculos: e.target.value})} />
-              </div>
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Armas Utilizadas</label>
-                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none"
-                  value={formData.armas} onChange={e => setFormData({...formData, armas: e.target.value})} />
+
+              <div className="space-y-2">
+                {formData.diligencias.map(dil => (
+                  <div key={dil.id} className="flex items-center justify-between bg-slate-900 border border-slate-800 p-3 rounded-xl group">
+                    <label className="flex items-center gap-3 cursor-pointer flex-1">
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${dil.concluida ? 'bg-emerald-500 border-emerald-500 text-slate-950' : 'bg-slate-950 border-slate-600'}`} onClick={() => toggleDiligencia(dil.id)}>
+                        {dil.concluida && <CheckSquare size={14} strokeWidth={4} />}
+                      </div>
+                      <span className={`text-sm transition-all ${dil.concluida ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{dil.texto}</span>
+                    </label>
+                    <button type="button" onClick={() => removerDiligencia(dil.id)} className="text-slate-600 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16}/></button>
+                  </div>
+                ))}
+                {formData.diligencias.length === 0 && <p className="text-center text-slate-600 text-xs py-4 font-bold uppercase tracking-widest">Nenhuma diligência criada.</p>}
               </div>
             </div>
 
-            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-indigo-400 border-b border-slate-800 pb-3 tracking-widest mt-10">
-              <Briefcase size={18} /> C. Gestão do Dossiê
+            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-indigo-400 border-b border-slate-800 pb-3 tracking-widest">
+              <Search size={18} /> C. Dados de Inteligência Coletados
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+              <div className="group">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Local Primário</label>
+                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-indigo-500 outline-none transition-all"
+                  value={formData.local} onChange={e => setFormData({...formData, local: e.target.value})} placeholder="Ponto de interesse principal" />
+              </div>
+              <div className="group">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Detalhes do Local</label>
+                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-indigo-500 outline-none transition-all"
+                  value={formData.detalhesLocal} onChange={e => setFormData({...formData, detalhesLocal: e.target.value})} placeholder="Ex: Galpão amarelo fundo" />
+              </div>
+              <div className="group">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Suspeitos Identificados</label>
+                <textarea rows="3" className="w-full bg-red-950/10 border border-red-900/30 rounded-xl px-4 py-3.5 text-white focus:border-red-500 outline-none resize-none transition-all"
+                  value={formData.suspeitos} onChange={e => setFormData({...formData, suspeitos: e.target.value})} placeholder="Liste suspeitos, ID, facções..." />
+              </div>
+              <div className="group">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Evidências Materiais</label>
+                <textarea rows="3" className="w-full bg-emerald-950/10 border border-emerald-900/30 rounded-xl px-4 py-3.5 text-white focus:border-emerald-500 outline-none resize-none transition-all"
+                  value={formData.evidencias} onChange={e => setFormData({...formData, evidencias: e.target.value})} placeholder="Drogas, armas apreendidas, fotos..." />
+              </div>
+              <div className="group">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Veículos Rastreáveis</label>
+                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-indigo-500 outline-none transition-all"
+                  value={formData.veiculos} onChange={e => setFormData({...formData, veiculos: e.target.value})} placeholder="Placas, modelos" />
+              </div>
+              <div className="group">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Balística / Armas Usadas</label>
+                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-indigo-500 outline-none transition-all"
+                  value={formData.armas} onChange={e => setFormData({...formData, armas: e.target.value})} placeholder="Tipos de calibre, cápsulas" />
+              </div>
+            </div>
+
+            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-yellow-500 border-b border-slate-800 pb-3 tracking-widest">
+              <Briefcase size={18} /> D. Gestão do Dossiê e Histórico
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
               <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Status do Caso</label>
-                <select className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-blue-500 outline-none"
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Status do Caso</label>
+                <select className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-4 text-white focus:border-yellow-500 outline-none transition-all cursor-pointer font-bold"
                   value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
                   <option>Em investigação</option>
                   <option>Aguardando Mandado</option>
@@ -333,8 +476,8 @@ export default function Investigacoes() {
                 </select>
               </div>
               <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Nível de Prioridade</label>
-                <select className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-blue-500 outline-none"
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Nível de Prioridade</label>
+                <select className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-4 text-white focus:border-yellow-500 outline-none transition-all cursor-pointer font-bold"
                   value={formData.prioridade} onChange={e => setFormData({...formData, prioridade: e.target.value})}>
                   <option>Baixa</option>
                   <option>Média</option>
@@ -342,26 +485,40 @@ export default function Investigacoes() {
                 </select>
               </div>
               <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Progresso do Inquérito ({formData.progresso}%)</label>
-                <input type="range" min="0" max="100" step="5" className="w-full accent-blue-600 mt-2"
-                  value={formData.progresso} onChange={e => setFormData({...formData, progresso: parseInt(e.target.value)})} />
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">
+                  Progresso Manual ({formData.progresso}%)
+                </label>
+                <input type="range" min="0" max="100" step="5" className="w-full accent-cyan-500 mt-3"
+                  value={formData.progresso} 
+                  onChange={e => setFormData({...formData, progresso: parseInt(e.target.value)})} 
+                  title="Use apenas se não for usar a aba de Diligências." />
+                <p className="text-[9px] text-slate-500 mt-2 font-mono uppercase">Atenção: A aba "Diligências" substitui esta barra.</p>
               </div>
+
+              {/* Novo Evento na Timeline */}
+              {isEditing && (
+                <div className="group md:col-span-3 bg-cyan-950/10 border border-cyan-900/30 p-5 rounded-2xl">
+                  <label className="block text-[10px] font-black text-cyan-500 uppercase mb-2 tracking-widest flex items-center gap-2"><History size={14}/> Adicionar Registro à Linha do Tempo</label>
+                  <input className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-cyan-500 outline-none transition-all text-sm font-mono"
+                    value={formData.novoEventoTimeline} onChange={e => setFormData({...formData, novoEventoTimeline: e.target.value})} placeholder="Ex: Suspeito interrogado hoje. Negou envolvimento..." />
+                </div>
+              )}
               
               {formData.status === 'Concluído' && (
                 <div className="group md:col-span-3">
-                  <label className="block text-[10px] font-black text-indigo-400 uppercase mb-2">Relatório de Conclusão Final</label>
-                  <textarea rows="3" className="w-full bg-indigo-950/20 border border-indigo-900/50 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none resize-none"
-                    value={formData.conclusao} onChange={e => setFormData({...formData, conclusao: e.target.value})} placeholder="Escreva a conclusão do inquérito para fechamento." />
+                  <label className="block text-[10px] font-black text-emerald-500 uppercase mb-2 tracking-widest">Relatório de Fechamento (Conclusão)</label>
+                  <textarea rows="4" className="w-full bg-emerald-950/10 border border-emerald-900/50 rounded-2xl px-5 py-4 text-white focus:border-emerald-500 outline-none resize-none transition-all font-mono text-sm"
+                    value={formData.conclusao} onChange={e => setFormData({...formData, conclusao: e.target.value})} placeholder="Escreva a conclusão do inquérito para o arquivamento definitivo." />
                 </div>
               )}
             </div>
 
-            <div className="flex justify-end gap-4 pt-6 border-t border-slate-800">
-              <button type="button" onClick={() => setView(isEditing ? 'detalhes' : 'lista')} className="px-8 py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-800 transition-all uppercase text-xs tracking-widest">
-                Cancelar
+            <div className="flex flex-col sm:flex-row justify-end gap-4 pt-8 border-t border-slate-800">
+              <button type="button" onClick={() => setView(isEditing ? 'detalhes' : 'lista')} className="px-8 py-4 rounded-xl font-bold text-slate-400 hover:bg-slate-800 hover:text-white transition-all uppercase text-xs tracking-widest">
+                Cancelar Edição
               </button>
-              <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-3 rounded-xl font-black uppercase text-xs flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(37,99,235,0.4)] tracking-widest">
-                <Save size={18} /> {isEditing ? 'SALVAR ALTERAÇÕES' : 'ABRIR INVESTIGAÇÃO'}
+              <button type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white px-10 py-4 rounded-xl font-black uppercase text-xs flex items-center justify-center gap-3 transition-all shadow-[0_0_25px_rgba(8,145,178,0.4)] tracking-widest">
+                <Save size={18} /> {isEditing ? 'SALVAR ATUALIZAÇÃO NO DOSSIÊ' : 'ABRIR INQUÉRITO FEDERAL'}
               </button>
             </div>
           </form>
