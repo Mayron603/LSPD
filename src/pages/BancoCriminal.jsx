@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchSeguro } from '../lib/api';
 import { 
   Search, User, AlertTriangle, ShieldAlert, Car, 
   Users, Briefcase, FileText, Camera, MapPin, 
@@ -30,7 +31,7 @@ export default function BancoCriminal() {
 
   const buscarFichas = async () => {
     try {
-      const response = await fetch('/api/banco-criminal');
+      const response = await fetchSeguro('/api/banco-criminal');
       if (response.ok) {
         const data = await response.json();
         setFichasNoBanco(data);
@@ -46,7 +47,7 @@ export default function BancoCriminal() {
     }
 
     try {
-      const response = await fetch(`/api/banco-criminal?id=${id}`, {
+      const response = await fetchSeguro(`/api/banco-criminal?id=${id}`, {
         method: 'DELETE',
       });
 
@@ -103,7 +104,7 @@ export default function BancoCriminal() {
 
     try {
       const method = isEditing ? 'PUT' : 'POST';
-      const response = await fetch('/api/banco-criminal', {
+      const response = await fetchSeguro('/api/banco-criminal', {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -118,7 +119,7 @@ export default function BancoCriminal() {
         if (isEditing) {
           const dadosAtualizados = await response.json();
           // Atualiza a ficha atual com os novos dados
-          const fichaBuscada = await fetch('/api/banco-criminal').then(res => res.json());
+          const fichaBuscada = await fetchSeguro('/api/banco-criminal').then(res => res.json());
           const atual = fichaBuscada.find(f => f._id === formData._id);
           setFichaAtual(atual);
           setView('perfil');

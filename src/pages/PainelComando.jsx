@@ -8,6 +8,7 @@ import {
   Edit2, Trash2, Send, Check, X, FileText, Flame
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { fetchSeguro } from '../lib/api';
 
 export default function PainelComando() {
   const { user } = useAuth();
@@ -38,9 +39,9 @@ export default function PainelComando() {
     const fetchDados = async () => {
       try {
         const [resOperacoes, resInvestigacoes, resComunicados] = await Promise.all([
-          fetch('/api/operacoes'),
-          fetch('/api/investigacoes'),
-          fetch('/api/comunicados')
+          fetchSeguro('/api/operacoes'),
+          fetchSeguro('/api/investigacoes'),
+          fetchSeguro('/api/comunicados')
         ]);
 
         if (resOperacoes.ok) {
@@ -67,7 +68,7 @@ export default function PainelComando() {
 
   const handleUpdateOperacao = async (id, novoStatus) => {
     try {
-      const res = await fetch('/api/operacoes', {
+      const res = await fetchSeguro('/api/operacoes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _id: id, status: novoStatus })
@@ -87,7 +88,7 @@ export default function PainelComando() {
   // FUNÇÕES DE COMUNICADOS
   // ==========================================
   const carregarComunicados = async () => {
-    const res = await fetch('/api/comunicados');
+    const res = await fetchSeguro('/api/comunicados');
     if (res.ok) {
       const data = await res.json();
       setComunicados(Array.isArray(data) ? data : []);
@@ -98,7 +99,7 @@ export default function PainelComando() {
     if (!novoTexto.trim() || enviando) return;
     setEnviando(true);
     try {
-      const res = await fetch('/api/comunicados', {
+      const res = await fetchSeguro('/api/comunicados', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ texto: novoTexto, autor: user?.nome || 'Alto Comando', prioridade })
@@ -123,7 +124,7 @@ export default function PainelComando() {
   const salvarEdicao = async (id) => {
     if (!textoEditado.trim()) return;
     try {
-      const res = await fetch('/api/comunicados', {
+      const res = await fetchSeguro('/api/comunicados', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, texto: textoEditado })
@@ -140,7 +141,7 @@ export default function PainelComando() {
   const deletarComunicado = async (id) => {
     if (!window.confirm("Remover este comunicado da rede oficial?")) return;
     try {
-      const res = await fetch(`/api/comunicados?id=${id}`, { method: 'DELETE' });
+      const res = await fetchSeguro(`/api/comunicados?id=${id}`, { method: 'DELETE' });
       if (res.ok) carregarComunicados();
     } catch (error) {
       console.error("Erro ao deletar:", error);

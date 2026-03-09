@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ShieldCheck, Users, Search, UserCog, AlertCircle } from 'lucide-react';
+import { fetchSeguro } from '../lib/api';
 
 // Configuração visual e de valores dos cargos (Roles) do sistema
 const ROLES_CONFIG = {
@@ -11,8 +12,8 @@ const ROLES_CONFIG = {
 };
 
 const PATENTES = [
-  "Cidadão", "Recruta", "Oficial I", "Oficial II", "Oficial III", 
-  "Sargento", "Tenente", "Capitão", "Major", "Comandante",
+  "Cidadão", "Recruta", "Oficial I", "Oficial II", "Policial Senior", 
+  "Sargento", "Tenente", "Capitão", "Comandante",
   "Agente FIB", "Diretor FIB"
 ];
 
@@ -27,7 +28,7 @@ export default function PainelAdmin() {
 
   const carregarUsuarios = async () => {
     try {
-      const res = await fetch('/api/usuarios');
+      const res = await fetchSeguro('/api/usuarios');
       const data = await res.json();
       setUsuarios(data);
       setLoading(false);
@@ -39,7 +40,7 @@ export default function PainelAdmin() {
 
   const handleAtualizarUsuario = async (id, campo, valor) => {
     try {
-      const res = await fetch('/api/usuarios', {
+      const res = await fetchSeguro('/api/usuarios', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, campo, valor })

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchSeguro } from '../lib/api';
 import { 
   Crosshair, Map, Plus, Users, Clock, XCircle, 
   Trash2, Shield, Terminal, Activity, Radar, Target, 
@@ -27,7 +28,8 @@ export default function Operacoes() {
 
   const fetchOperacoes = async () => {
     try {
-      const res = await fetch('/api/operacoes');
+      // CORRIGIDO: Usando fetchSeguro
+      const res = await fetchSeguro('/api/operacoes');
       const data = await res.json();
       setOperacoes(data);
     } catch (err) {
@@ -46,7 +48,8 @@ export default function Operacoes() {
     // Define o método dependendo se está a editar ou a criar
     const method = isEditing ? 'PUT' : 'POST';
     
-    const res = await fetch('/api/operacoes', {
+    // CORRIGIDO: Usando fetchSeguro
+    const res = await fetchSeguro('/api/operacoes', {
       method: method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData),
@@ -68,7 +71,8 @@ export default function Operacoes() {
 
   const handleExcluir = async (id) => {
     if (confirm("AUTORIZAÇÃO REQUERIDA: Deseja remover esta operação do registro oficial?")) {
-      await fetch(`/api/operacoes?id=${id}`, { method: 'DELETE' });
+      // CORRIGIDO: Usando fetchSeguro
+      await fetchSeguro(`/api/operacoes?id=${id}`, { method: 'DELETE' });
       fetchOperacoes();
       if (operacaoSelecionada && operacaoSelecionada._id === id) setOperacaoSelecionada(null);
     }
@@ -314,7 +318,7 @@ export default function Operacoes() {
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg border-l-4 border-l-red-500">
                     <h3 className="text-xs font-black text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Crosshair size={16}/> 6. Alvos / Suspeitos</h3>
                     <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed bg-red-950/10 p-3 rounded-lg">
-                      {operacaoSelecionada.suspeitos || 'Alvos não identificados.'}
+                      {operacaoSelecionada.suspeitos || 'Alvos não identified.'}
                     </p>
                   </div>
 
