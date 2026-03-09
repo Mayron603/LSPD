@@ -36,7 +36,6 @@ export default function Navbar() {
     { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },
     { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} /> },
     { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
-    { name: 'Porte', path: '/porte-arma', icon: <FileSignature size={16} /> },
   ];
 
   const handleLogout = () => {
