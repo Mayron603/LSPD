@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Zap, Shield, Search, Map } from 'lucide-react';
+import { ArrowRight, Zap, Shield, Search, Map, ExternalLink } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -30,8 +30,6 @@ export default function Home() {
         {/* === Conteúdo da Seção Hero (Texto) === */}
         <div className="relative z-10 text-center px-6 mt-10">
           
-          {/* Aviso de recrutamento removido daqui */}
-
           {/* Lema Principal */}
           <h1 className="text-6xl md:text-9xl font-extrabold tracking-tighter mb-8 leading-[0.9] drop-shadow-2xl">
             <span className="text-white">PROTEGER</span> <span className="text-slate-400">E</span> <br />
@@ -71,27 +69,47 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           
-          {/* Card SPEED */}
-          <div className="group relative bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-10 overflow-hidden hover:border-yellow-500/30 hover:shadow-2xl hover:shadow-yellow-500/10 transition-all duration-300">
+          {/* Card SPEED - Transformado em Link */}
+          <a 
+            href="https://speed-theta-seven.vercel.app/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="group relative bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-10 overflow-hidden hover:border-yellow-500/30 hover:shadow-2xl hover:shadow-yellow-500/10 transition-all duration-300 block cursor-pointer"
+          >
             <div className="absolute -inset-20 bg-radial from-yellow-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity blur-3xl rounded-full"></div>
             <Zap className="relative w-16 h-16 text-yellow-400 mb-8 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
-            <h3 className="relative text-3xl font-extrabold text-white mb-4 tracking-tight">S.P.E.E.D.</h3>
+            
+            <div className="relative flex items-center justify-between mb-4">
+              <h3 className="text-3xl font-extrabold text-white tracking-tight">S.P.E.E.D.</h3>
+              <ExternalLink size={24} className="text-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1 group-hover:-translate-y-1 duration-300" />
+            </div>
+
             <p className="relative text-slate-300 leading-relaxed font-light text-lg">
               Unidade de interceptação rápida. Especializada em perseguições veiculares em alta velocidade, patrulhamento rodoviário e escoltas de risco.
             </p>
-          </div>
+          </a>
 
-          {/* Card ASD */}
-          <div className="group relative bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-10 overflow-hidden hover:border-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300">
+          {/* Card ASD - Transformado em Link */}
+          <a 
+            href="https://asd-eight-alpha.vercel.app/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="group relative bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-10 overflow-hidden hover:border-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 block cursor-pointer"
+          >
             <div className="absolute -inset-20 bg-radial from-blue-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity blur-3xl rounded-full"></div>
             <Map className="relative w-16 h-16 text-blue-400 mb-8 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
-            <h3 className="relative text-3xl font-extrabold text-white mb-4 tracking-tight">A.S.D. (Air Support)</h3>
+            
+            <div className="relative flex items-center justify-between mb-4">
+              <h3 className="text-3xl font-extrabold text-white tracking-tight">A.S.D. (Air Support)</h3>
+              <ExternalLink size={24} className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1 group-hover:-translate-y-1 duration-300" />
+            </div>
+
             <p className="relative text-slate-300 leading-relaxed font-light text-lg">
               Os olhos da LSPD no céu. Pilotos de elite fornecendo cobertura aérea vital, iluminação noturna, rastreamento de veículos e vigilância tática.
             </p>
-          </div>
+          </a>
 
-          {/* Card MTE */}
+          {/* Card MTE - Continua como div */}
           <div className="group relative bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-10 overflow-hidden hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300">
             <div className="absolute -inset-20 bg-radial from-emerald-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity blur-3xl rounded-full"></div>
             <Shield className="relative w-16 h-16 text-emerald-400 mb-8 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
@@ -101,7 +119,7 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Card FIB */}
+          {/* Card FIB - Continua como div */}
           <div className="group relative bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-10 overflow-hidden hover:border-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300">
             <div className="absolute -inset-20 bg-radial from-purple-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity blur-3xl rounded-full"></div>
             <Search className="relative w-16 h-16 text-purple-400 mb-8 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]" />
