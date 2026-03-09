@@ -5,4 +5,18 @@
 body {
   background-color: #0f172a; /* Fundo escuro LSPD */
   color: white;
+
+
+
+  /* TRUQUE PARA TEMA CLARO (LIGHT MODE) */
+html.light-theme {
+  filter: invert(1) hue-rotate(180deg);
+  background-color: #f8fafc; /* Fundo claro base */
+}
+
+/* Evita que imagens e ícones fiquem com cores bugadas no modo claro */
+html.light-theme img,
+html.light-theme video {
+  filter: invert(1) hue-rotate(180deg);
+}
 }

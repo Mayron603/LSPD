@@ -1,41 +1,43 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Shield, Users, FileText, ClipboardList, Search, 
-  Briefcase, Crosshair, Crown, ShieldAlert, LogOut, Calculator 
+  Briefcase, Crosshair, Crown, FileSignature, ShieldAlert, LogOut, Calculator, Sun, Moon 
 } from 'lucide-react';
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  
   const usuarioInfo = JSON.parse(localStorage.getItem('usuario') || '{}');
-  const userRole = usuarioInfo?.role || 'visitante'; // Pega o cargo do usuário
-  const isAdmin = userRole === 'admin';
+  const isAdmin = usuarioInfo?.role === 'admin';
 
-  // Array configurando quais roles podem ver cada botão na Navbar
+  // Sistema de Tema Claro/Escuro
+  const [isLightMode, setIsLightMode] = useState(localStorage.getItem('theme') === 'light');
+
+  useEffect(() => {
+    if (isLightMode) {
+      document.documentElement.classList.add('light-theme');
+      localStorage.setItem('theme', 'light');
+    } else {
+      document.documentElement.classList.remove('light-theme');
+      localStorage.setItem('theme', 'dark');
+    }
+  }, [isLightMode]);
+
+  const toggleTheme = () => setIsLightMode(!isLightMode);
+
   const navLinks = [
-    // Liberado para todos (Visitantes)
-    { name: 'Início', path: '/', icon: <Shield size={16} />, roles: ['all'] },
-    { name: 'Sobre', path: '/sobre', icon: <Users size={16} />, roles: ['all'] },
-    { name: 'Penal', path: '/codigo', icon: <FileText size={16} />, roles: ['all'] },
-    
-    // Restritos Policiais
-    { name: 'Calculadora', path: '/calculadora', icon: <Calculator size={16} />, roles: ['oficial', 'comando', 'fib'] },
-    { name: 'Oficiais', path: '/oficiais', icon: <ClipboardList size={16} />, roles: ['oficial', 'comando'] },
-    { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} />, roles: ['oficial', 'comando', 'fib'] },
-    { name: 'Comando', path: '/comando', icon: <Crown size={16} />, roles: ['comando'] },
-
-    // Exclusivos FIB
-    { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} />, roles: ['fib'] },
-    { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} />, roles: ['fib'] },
+    { name: 'Início', path: '/', icon: <Shield size={16} /> },
+    { name: 'Sobre', path: '/sobre', icon: <Users size={16} /> },
+    { name: 'Penal', path: '/codigo', icon: <FileText size={16} /> },
+    { name: 'Calculadora', path: '/calculadora', icon: <Calculator size={16} /> },
+    { name: 'Oficiais', path: '/oficiais', icon: <ClipboardList size={16} /> },
+    { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} /> },
+    { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },
+    { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} /> },
+    { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
+    { name: 'Porte', path: '/porte-arma', icon: <FileSignature size={16} /> },
   ];
-
-  // Filtra a Navbar antes de exibir na tela
-  const linksVisiveis = navLinks.filter(link => {
-    if (isAdmin) return true; // Se for admin, vê todos os botões
-    if (link.roles.includes('all')) return true; // Se for 'all', todo mundo vê (inclusive visitantes)
-    return link.roles.includes(userRole); // Se não, vê só se tiver a role exata
-  });
 
   const handleLogout = () => {
     localStorage.removeItem('autenticado');
@@ -48,15 +50,13 @@ export default function Navbar() {
       <div className="max-w-full mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           
-          {/* Esquerda: Logo */}
           <div className="flex items-center gap-2 min-w-fit">
             <Shield className="text-blue-500" size={24} />
             <span className="font-black text-white tracking-tighter text-lg">LSPD</span>
           </div>
 
-          {/* Centro: Links Filtrados */}
           <div className="flex items-center gap-1 mx-4">
-            {linksVisiveis.map((link) => {
+            {navLinks.map((link) => {
               const isActive = location.pathname === link.path;
               return (
                 <Link
@@ -75,8 +75,17 @@ export default function Navbar() {
             })}
           </div>
 
-          {/* Direita: Admin, Perfil e Logout */}
           <div className="flex items-center gap-2 min-w-fit border-l border-white/10 pl-4">
+            
+            {/* BOTÃO TEMA CLARO/ESCURO */}
+            <button 
+              onClick={toggleTheme}
+              className="p-2 bg-slate-900 hover:bg-blue-900/30 text-slate-400 hover:text-blue-400 rounded-lg border border-slate-800 transition-all mr-2"
+              title="Alternar Tema (Claro/Escuro)"
+            >
+              {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
+
             {isAdmin && (
               <Link
                 to="/admin"
@@ -92,8 +101,8 @@ export default function Navbar() {
             )}
 
             <div className="hidden lg:flex flex-col items-end px-2">
-              <span className="text-[9px] text-blue-400 font-bold uppercase leading-none">{usuarioInfo?.patente || 'Visitante'}</span>
-              <span className="text-xs font-black text-white leading-tight">{usuarioInfo?.nome || 'Anônimo'}</span>
+              <span className="text-[9px] text-blue-400 font-bold uppercase leading-none">{usuarioInfo?.patente}</span>
+              <span className="text-xs font-black text-white leading-tight">{usuarioInfo?.nome}</span>
             </div>
 
             <button 
