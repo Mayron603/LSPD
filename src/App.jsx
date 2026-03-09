@@ -3,7 +3,6 @@ import { Suspense, lazy } from 'react';
 import Navbar from './components/Navbar';
 import './index.css';
 
-// Transformando as importações normais em Lazy Loading
 const Home = lazy(() => import('./pages/Home'));
 const Sobre = lazy(() => import('./pages/Sobre'));
 const Recrutamento = lazy(() => import('./pages/Recrutamento'));
@@ -18,13 +17,30 @@ const Registro = lazy(() => import('./pages/Registro'));
 const PainelAdmin = lazy(() => import('./pages/PainelAdmin'));
 const CalculadoraPenal = lazy(() => import('./pages/CalculadoraPenal'));
 
-// Componente para proteger as rotas padrão
+// Componente para rotas padrão (Visitantes acessam)
 const RotaPrivada = ({ children }) => {
   const autenticado = localStorage.getItem('autenticado');
   return autenticado ? children : <Navigate to="/login" />;
 };
 
-// Componente para proteger rotas de Administrador
+// NOVO: Componente para proteger rotas por Cargo (Role)
+const RotaRestrita = ({ children, rolesPermitidos }) => {
+  const autenticado = localStorage.getItem('autenticado');
+  const usuarioInfo = JSON.parse(localStorage.getItem('usuario') || '{}');
+  
+  // Se o usuário não tiver role definida no banco, consideramos como 'visitante'
+  const userRole = usuarioInfo?.role || 'visitante'; 
+  
+  if (!autenticado) return <Navigate to="/login" />;
+  
+  // Se for admin, sempre tem acesso. Se não, verifica se o cargo está na lista permitida.
+  const temAcesso = userRole === 'admin' || rolesPermitidos.includes(userRole);
+  
+  // Se não tiver acesso, joga de volta para o Início
+  return temAcesso ? children : <Navigate to="/" />; 
+};
+
+// Componente para rotas exclusivas de Admin
 const RotaAdmin = ({ children }) => {
   const autenticado = localStorage.getItem('autenticado');
   const usuarioInfo = JSON.parse(localStorage.getItem('usuario') || '{}');
@@ -36,7 +52,6 @@ const RotaAdmin = ({ children }) => {
   return children;
 };
 
-// Componente para esconder a Navbar na tela de login e registro
 const LayoutComNavbar = ({ children }) => {
   const location = useLocation();
   const esconderNavbar = location.pathname === '/login' || location.pathname === '/registro';
@@ -51,7 +66,6 @@ const LayoutComNavbar = ({ children }) => {
   );
 };
 
-// Tela de carregamento enquanto a página é baixada
 const LoadingScreen = () => (
   <div className="flex items-center justify-center min-h-screen text-blue-500 font-bold">
     Carregando sistema LSPD...
@@ -62,26 +76,29 @@ function App() {
   return (
     <Router>
       <LayoutComNavbar>
-        {/* O Suspense mostra o fallback enquanto a página solicitada não carrega */}
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
-            {/* Rotas públicas */}
             <Route path="/login" element={<Login />} />
             <Route path="/registro" element={<Registro />} />
             
-            {/* Rotas Privadas */}
+            {/* 🟢 Rotas de Visitantes (Acesso para qualquer logado) */}
             <Route path="/" element={<RotaPrivada><Home /></RotaPrivada>} />
             <Route path="/sobre" element={<RotaPrivada><Sobre /></RotaPrivada>} />
             <Route path="/recrutamento" element={<RotaPrivada><Recrutamento /></RotaPrivada>} />
             <Route path="/codigo" element={<RotaPrivada><CodigoPenal /></RotaPrivada>} />
-            <Route path="/oficiais" element={<RotaPrivada><ControleOficiais /></RotaPrivada>} />
-            <Route path="/banco-criminal" element={<RotaPrivada><BancoCriminal /></RotaPrivada>} />
-            <Route path="/investigacoes" element={<RotaPrivada><Investigacoes /></RotaPrivada>} />
-            <Route path="/operacoes" element={<RotaPrivada><Operacoes /></RotaPrivada>} />
-            <Route path="/comando" element={<RotaPrivada><PainelComando /></RotaPrivada>} />
-            <Route path="/calculadora" element={<RotaPrivada><CalculadoraPenal /></RotaPrivada>} />
 
-            {/* Rota Exclusiva de Administração */}
+            {/* 🔴 Rotas Exclusivas FIB */}
+            <Route path="/investigacoes" element={<RotaRestrita rolesPermitidos={['fib']}><Investigacoes /></RotaRestrita>} />
+            <Route path="/operacoes" element={<RotaRestrita rolesPermitidos={['fib']}><Operacoes /></RotaRestrita>} />
+
+            {/* 🔵 Rotas Exclusivas da Polícia (LSPD) */}
+            {/* Adicionei 'oficial' e 'comando' como exemplo para as outras páginas que não são de visitantes */}
+            <Route path="/banco-criminal" element={<RotaRestrita rolesPermitidos={['oficial', 'comando', 'fib']}><BancoCriminal /></RotaRestrita>} />
+            <Route path="/calculadora" element={<RotaRestrita rolesPermitidos={['oficial', 'comando', 'fib']}><CalculadoraPenal /></RotaRestrita>} />
+            <Route path="/oficiais" element={<RotaRestrita rolesPermitidos={['oficial', 'comando']}><ControleOficiais /></RotaRestrita>} />
+            <Route path="/comando" element={<RotaRestrita rolesPermitidos={['comando']}><PainelComando /></RotaRestrita>} />
+
+            {/* 🟡 Rota Exclusiva de Administração */}
             <Route path="/admin" element={<RotaAdmin><PainelAdmin /></RotaAdmin>} />
           </Routes>
         </Suspense>

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { 
   Calculator, ShieldAlert, Car, UserMinus, FileText, 
   Copy, Trash2, Search, Scale, Terminal, Activity, 
-  AlertTriangle, Crosshair, Upload, Image as ImageIcon, Send
+  AlertTriangle, Crosshair, Upload, Image as ImageIcon, Send,
+  ChevronDown
 } from 'lucide-react';
 
 const BANCO_CRIMES_REBAIXADOS = [
@@ -56,7 +57,7 @@ const BANCO_CRIMES_REBAIXADOS = [
   { artigo: "ART 99", nome: "CONTRABANDO DE MERCADORIA", pena: 8, multa: 20000, fianca: 50000 },
   { artigo: "ART. 35", nome: "ASSOCIAÇÃO AO TRÁFICO", pena: 5, multa: 15000, fianca: 25000 },
   { artigo: "ART. 14", nome: "PORTE ILEGAL DE ARMAS", pena: 5, multa: 10000, fianca: 20000 },
-  { artigo: "ART. 17", nome: "TRAFICO DE ARMAS", pena: 15, multa: 60000, fianca: 120000 },
+  { artigo: "ART. 17", nome: "TRÁFICO DE ARMAS", pena: 15, multa: 60000, fianca: 120000 },
   { artigo: "S/A", nome: "POSSE DE MUNIÇÃO", pena: 5, multa: 7000, fianca: 15000 },
   { artigo: "LEI 12.850", nome: "INFILTRAÇÃO POLICIAL SEM AUTORIZAÇÃO", pena: 20, multa: 75000, fianca: 100000 },
   { artigo: "ART 100", nome: "OBEJTOS ILICITOS", pena: 0, multa: 0, fianca: 0 },
@@ -92,41 +93,21 @@ const BANCO_CRIMES_REBAIXADOS = [
 ];
 
 const ITENS_ILEGAIS = [
-  "ARMAS",
-  "MUNICOES",
-  "TABLET DE CORRIDA",
-  "TABLET DE BOOSTING",
-  "CONTRATO DE ROUBO",
-  "CARTAO DE SEGURANCA NIVEL 1",
-  "CARTAO DE SEGURANCA NIVEL 2",
-  "TERMITA",
-  "KIT ELETRONICO",
-  "C4",
-  "PEN DRIVE TROJAN",
-  "CRYPTO STICK",
-  "FLARE AIRDROP",
-  "LOCKPICK",
-  "LOCKPICK AVANCADA",
-  "COLETE BALISTICO",
-  "CORPO DE ARMA",
-  "COCAINA",
-  "HEROINA",
-  "METANFETAMINA",
-  "MACONHA",
-  "SEMENTE DE COCA",
-  "TIJOLO DE COCAINA",
-  "ANFETAMINA",
-  "SACO DE SUPRIMENTOS ILEGAIS",
-  "TIJOLO DE MACONHA",
-  "NOTAS MARCADAS",
-  "CAIXA DE SUPRIMENTOS ILEGAIS"
+  "ARMAS", "MUNICOES", "TABLET DE CORRIDA", "TABLET DE BOOSTING",
+  "CONTRATO DE ROUBO", "CARTAO DE SEGURANCA NIVEL 1", "CARTAO DE SEGURANCA NIVEL 2",
+  "TERMITA", "KIT ELETRONICO", "C4", "PEN DRIVE TROJAN", "CRYPTO STICK",
+  "FLARE AIRDROP", "LOCKPICK", "LOCKPICK AVANCADA", "COLETE BALISTICO",
+  "CORPO DE ARMA", "COCAINA", "HEROINA", "METANFETAMINA", "MACONHA",
+  "SEMENTE DE COCA", "TIJOLO DE COCAINA", "ANFETAMINA", "SACO DE SUPRIMENTOS ILEGAIS",
+  "TIJOLO DE MACONHA", "NOTAS MARCADAS", "CAIXA DE SUPRIMENTOS ILEGAIS"
 ].sort();
 
-// WEBHOOK DISCORD
+// AVISO: SUBSTITUA O TEXTO ABAIXO PELO SEU NOVO LINK DE WEBHOOK DO DISCORD
 const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1479990775075831862/sMnB-1W9HN40D9NhC8C_JycNqYonduU3rgdeic1aryw8v3WGCZIi1JPKJ4wkY0Wh-iCI";
 
 export default function CalculadoraPenal() {
   const [oficial, setOficial] = useState(JSON.parse(localStorage.getItem('usuario') || '{}').nome || '');
+  const [oficiaisEnvolvidos, setOficiaisEnvolvidos] = useState('');
   const [individuo, setIndividuo] = useState('');
   const [local, setLocal] = useState('');
   
@@ -144,31 +125,21 @@ export default function CalculadoraPenal() {
 
   const [crimes, setCrimes] = useState([]);
   const [buscaCrime, setBuscaCrime] = useState('');
-  const [resultadosBusca, setResultadosBusca] = useState([]);
+  const [menuCrimesAberto, setMenuCrimesAberto] = useState(false);
   
   const [reuPrimario, setReuPrimario] = useState(false);
   const [relatorioTexto, setRelatorioTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
 
-  // Busca de Crimes
-  useEffect(() => {
-    if (buscaCrime.length > 1) {
-      const termo = buscaCrime.toLowerCase();
-      const filtrados = BANCO_CRIMES_REBAIXADOS.filter(c => 
-        c.nome.toLowerCase().includes(termo) || c.artigo.toLowerCase().includes(termo)
-      );
-      setResultadosBusca(filtrados);
-    } else {
-      setResultadosBusca([]);
-    }
-  }, [buscaCrime]);
+  const crimesFiltrados = BANCO_CRIMES_REBAIXADOS.filter(c => 
+    c.nome.toLowerCase().includes(buscaCrime.toLowerCase()) || 
+    c.artigo.toLowerCase().includes(buscaCrime.toLowerCase())
+  );
 
-  // Atualiza Texto do Relatório
   useEffect(() => {
     gerarRelatorioTexto();
-  }, [oficial, individuo, local, temVeiculo, placa, temRefem, nomeRefem, itens, crimes, reuPrimario]);
+  }, [oficial, oficiaisEnvolvidos, individuo, local, temVeiculo, placa, temRefem, nomeRefem, itens, crimes, reuPrimario]);
 
-  // Manipulação de Imagem
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -185,13 +156,19 @@ export default function CalculadoraPenal() {
   const handleAddItem = () => {
     if (qtdItem > 0 && itemSelecionado.trim() !== '') {
       setItens([...itens, { nome: itemSelecionado.trim().toUpperCase(), qtd: qtdItem }]);
-      setItemSelecionado(''); // Limpa o campo após adicionar
+      setItemSelecionado('');
       setQtdItem(1);
     }
   };
 
   const handleRemoverItem = (index) => setItens(itens.filter((_, i) => i !== index));
-  const handleAddCrime = (crime) => { setCrimes([...crimes, crime]); setBuscaCrime(''); setResultadosBusca([]); };
+  
+  const handleAddCrime = (crime) => { 
+    setCrimes([...crimes, crime]); 
+    setBuscaCrime(''); 
+    setMenuCrimesAberto(false); 
+  };
+  
   const handleRemoverCrime = (index) => setCrimes(crimes.filter((_, i) => i !== index));
 
   const limparTudo = () => {
@@ -201,6 +178,7 @@ export default function CalculadoraPenal() {
       setTemRefem(false); setNomeRefem('');
       setItens([]); setCrimes([]); setReuPrimario(false);
       setItemSelecionado('');
+      setOficiaisEnvolvidos('');
       removerImagem();
     }
   };
@@ -236,46 +214,61 @@ export default function CalculadoraPenal() {
     const hostageStr = temRefem ? `SIM | NOME: ${nomeRefem || 'NÃO INFORMADO'}` : "NÃO";
     const itemsTxt = itens.length > 0 ? itens.map(i => `- ${i.qtd}x ${i.nome}`).join('\n') : "NADA CONSTA";
     const crimesTxt = crimes.length > 0 ? crimes.map(c => `• ${c.artigo} - ${c.nome} (${c.pena === "BAN" ? "BAN" : c.pena + "m"})`).join('\n') : "NENHUM";
+    const ofcsEnvolvidosTxt = oficiaisEnvolvidos ? `\n[OFICIAIS ENVOLVIDOS]: ${oficiaisEnvolvidos}` : "";
 
-    setRelatorioTexto(`\`\`\`md\n# REGISTRO DE OCORRência - LSPD\n\n[OFICIAL RESPONSÁVEL]: ${oficial || "N/A"}\n[INDIVÍDUO]: ${individuo || "N/A"}\n[LOCAL]: ${local || "N/A"}\n\n[CENÁRIO]:\n> VEÍCULO UTILIZADO: ${vehicleStr}\n> REFÉM NA AÇÃO: ${hostageStr}\n\n[APREENSÕES]:\n${itemsTxt}\n\n[IMPUTAÇÕES PENAIS]:\n${crimesTxt}\n\n[SENTENÇA FINAL]:\n> PENA TOTAL: ${displayPenaBase} ${!temBan ? "Meses" : ""}\n> MULTA: $${multaTotal.toLocaleString('pt-BR')}\n> FIANÇA: ${displayFianca}\n> ATENUANTE: ${reuPrimario && !temBan ? 'APLICADO (-30%)' : 'NÃO APLICADO'}\n> TEMPO A CUMPRIR: ${displayPenaFinal} ${!temBan ? "MESES" : ""}\n\nDATA: ${new Date().toLocaleString('pt-BR')}\n\`\`\``);
+    setRelatorioTexto(`\`\`\`md\n# REGISTRO DE OCORRência - LSPD\n\n[OFICIAL RESPONSÁVEL]: ${oficial || "N/A"}${ofcsEnvolvidosTxt}\n[INDIVÍDUO]: ${individuo || "N/A"}\n[LOCAL]: ${local || "N/A"}\n\n[CENÁRIO]:\n> VEÍCULO UTILIZADO: ${vehicleStr}\n> REFÉM NA AÇÃO: ${hostageStr}\n\n[APREENSÕES]:\n${itemsTxt}\n\n[IMPUTAÇÕES PENAIS]:\n${crimesTxt}\n\n[SENTENÇA FINAL]:\n> PENA TOTAL: ${displayPenaBase} ${!temBan ? "Meses" : ""}\n> MULTA: $${multaTotal.toLocaleString('pt-BR')}\n> FIANÇA: ${displayFianca}\n> ATENUANTE: ${reuPrimario && !temBan ? 'APLICADO (-30%)' : 'NÃO APLICADO'}\n> TEMPO A CUMPRIR: ${displayPenaFinal} ${!temBan ? "MESES" : ""}\n\nDATA: ${new Date().toLocaleString('pt-BR')}\n\`\`\``);
   };
 
-  // --- ENVIO PARA O DISCORD (WEBHOOK COM EMBED E IMAGEM) ---
   const enviarDiscord = async () => {
     if (!individuo || crimes.length === 0) {
       alert("Erro: Preencha o nome do indivíduo e adicione pelo menos um crime.");
       return;
     }
 
+    if (DISCORD_WEBHOOK_URL === "COLE_SEU_LINK_AQUI" || !DISCORD_WEBHOOK_URL) {
+      alert("Erro: O Link do Webhook não foi configurado no código. Atualize a variável DISCORD_WEBHOOK_URL.");
+      return;
+    }
+
     setEnviando(true);
-    
     const formData = new FormData();
     
-    const embedCor = temBan ? 15548997 : 2064379; 
-    
-    const vehicleStr = `🚗 **Veículo:** ${temVeiculo ? `Sim (Placa: ${placa || 'N/A'})` : "Não"}`;
-    const hostageStr = `⚠️ **Refém:** ${temRefem ? `Sim (Nome: ${nomeRefem || 'N/A'})` : "Não"}`;
-    const itemsTxt = itens.length > 0 ? itens.map(i => `> • **${i.qtd}x** ${i.nome}`).join('\n') : "> Nenhuma apreensão registrada.";
-    const crimesTxt = crimes.length > 0 ? crimes.map(c => `> • **${c.artigo}** - ${c.nome} (*${c.pena === 'BAN' ? 'BAN' : c.pena+'m'}*)`).join('\n') : "> Nenhum crime selecionado.";
+    const embedCor = temBan ? 16711680 : 3447003; 
 
     const embed = {
-      title: "🚨 REGISTRO OFICIAL DE OCORRÊNCIA",
+      title: temBan ? "🛑 MANDADO DE PRISÃO (NÍVEL EXTREMO / BAN)" : "🚨 REGISTRO DE OCORRÊNCIA PENAL",
       color: embedCor,
-      description: "Novo registro inserido no sistema MDT da LSPD.",
+      description: ">>> **DEPARTAMENTO DE POLÍCIA DE LOS SANTOS**\nRelatório Oficial de Abordagem, Apreensão e Prisão gerado via MDT.",
       fields: [
-        { name: "👮 Oficial Responsável", value: `\`${oficial || "N/A"}\``, inline: true },
+        { name: "👮 Oficial (QRA)", value: `\`${oficial || "N/A"}\``, inline: true },
+        { name: "👮 Oficiais Envolvidos", value: `\`${oficiaisEnvolvidos || "Nenhum"}\``, inline: true },
         { name: "👤 Indivíduo Detido", value: `**${individuo}**`, inline: true },
-        { name: "📍 Localização (QTH)", value: `\`${local || "N/A"}\``, inline: false },
-        { name: "🎬 Cenário da Ação", value: `${vehicleStr}\n${hostageStr}`, inline: false },
-        { name: "🎒 Itens Apreendidos", value: itemsTxt, inline: false },
-        { name: "⚖️ Imputações Penais", value: crimesTxt, inline: false },
+        
+        { name: "📍 Localização (QTH)", value: `\`${local || "N/A"}\``, inline: true },
+        { name: "🚗 Uso de Veículo", value: temVeiculo ? `\`SIM (${placa || 'Sem Placa'})\`` : "`NÃO`", inline: true },
+        { name: "⚠️ Reféns Envolvidos", value: temRefem ? `\`SIM (${nomeRefem || 'N/A'})\`` : "`NÃO`", inline: true },
+        
         { 
-          name: "📋 Veredito Final", 
-          value: `**Pena Base:** ${displayPenaBase} ${!temBan ? "Meses" : ""}\n**Multa Total:** $${multaTotal.toLocaleString('pt-BR')}\n**Valor Fiança:** ${displayFianca}\n**Réu Primário:** ${reuPrimario && !temBan ? 'Sim (-30%)' : 'Não'}\n\n🛑 **TEMPO A CUMPRIR: ${displayPenaFinal} ${!temBan ? "MESES" : ""}**`, 
+          name: "🎒 Inventário de Apreensões", 
+          value: itens.length > 0 ? `\`\`\`yaml\n${itens.map(i => `${i.qtd}x - ${i.nome}`).join('\n')}\n\`\`\`` : "```\nNADA CONSTA\n```", 
+          inline: false 
+        },
+        
+        { 
+          name: "⚖️ Histórico de Imputações (Crimes)", 
+          value: crimes.length > 0 ? `\`\`\`diff\n${crimes.map(c => `- [${c.artigo}] ${c.nome} (${c.pena === 'BAN' ? 'BAN' : c.pena+' Meses'})`).join('\n')}\n\`\`\`` : "```\nNENHUM CRIME REGISTRADO\n```", 
+          inline: false 
+        },
+        
+        { 
+          name: "📋 VEREDITO E SENTENÇA FINAL", 
+          value: `> **Pena Base Inicial:** \`${displayPenaBase} ${!temBan ? "Meses" : ""}\`\n> **Multa Penal Aplicada:** \`$${multaTotal.toLocaleString('pt-BR')}\`\n> **Direito à Fiança:** \`${displayFianca}\`\n> **Atenuante (Réu Primário):** \`${reuPrimario && !temBan ? 'SIM (-30%)' : 'NÃO'}\`\n\n🚨 **TEMPO TOTAL A CUMPRIR: \`${displayPenaFinal} ${!temBan ? "MESES" : ""}\`**`, 
           inline: false 
         }
       ],
-      footer: { text: "Terminal LSPD-OS v5.1 • " + new Date().toLocaleDateString('pt-BR') },
+      footer: { 
+        text: "LSPD MDT System • Segurança Central",
+      },
       timestamp: new Date().toISOString()
     };
 
@@ -296,7 +289,7 @@ export default function CalculadoraPenal() {
         alert("Sucesso! Relatório e evidências enviados para o canal do Discord da LSPD.");
         limparTudo();
       } else {
-        alert("Falha ao enviar webhook. Verifique o link do Discord.");
+        alert("Falha ao enviar webhook. Verifique se o link do Discord inserido no código está correto.");
       }
     } catch (error) {
       console.error(error);
@@ -340,6 +333,12 @@ export default function CalculadoraPenal() {
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 group-focus-within:text-blue-400">Oficial Responsável (QRA)</label>
                   <input type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all" value={oficial} onChange={e => setOficial(e.target.value)} placeholder="Ex: Tinga Tava" />
                 </div>
+                
+                <div className="group">
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 group-focus-within:text-blue-400">Oficiais Envolvidos (Opcional)</label>
+                  <input type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all" value={oficiaisEnvolvidos} onChange={e => setOficiaisEnvolvidos(e.target.value)} placeholder="Ex: Ofc. Silva, Det. Lima" />
+                </div>
+
                 <div className="group">
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 group-focus-within:text-blue-400">Indivíduo Detido *</label>
                   <input type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all" value={individuo} onChange={e => setIndividuo(e.target.value)} placeholder="Nome do criminoso" />
@@ -385,7 +384,6 @@ export default function CalculadoraPenal() {
               </h3>
               
               <div className="flex gap-2 mb-4">
-                {/* CAMPO MODIFICADO AQUI - Input livre com Datalist */}
                 <input 
                   type="text" 
                   list="lista-itens-ilegais"
@@ -446,28 +444,53 @@ export default function CalculadoraPenal() {
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Search className="text-slate-500" size={18} />
                 </div>
+                
                 <input 
                   type="text" 
-                  className="w-full bg-slate-950/80 border border-slate-700 rounded-xl pl-12 pr-4 py-4 text-white text-lg focus:border-emerald-500 outline-none transition-all placeholder:text-slate-600" 
-                  placeholder="Pesquisar artigo ou nome do crime..."
+                  className="w-full bg-slate-950/80 border border-slate-700 rounded-xl pl-12 pr-12 py-4 text-white text-lg focus:border-emerald-500 outline-none transition-all placeholder:text-slate-600 cursor-pointer" 
+                  placeholder="Pesquisar ou selecionar crime..."
                   value={buscaCrime}
-                  onChange={e => setBuscaCrime(e.target.value)}
+                  onChange={e => {
+                    setBuscaCrime(e.target.value);
+                    setMenuCrimesAberto(true);
+                  }}
+                  onFocus={() => setMenuCrimesAberto(true)}
+                  onBlur={() => setTimeout(() => setMenuCrimesAberto(false), 200)}
                 />
                 
-                {resultadosBusca.length > 0 && (
+                <div 
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center cursor-pointer"
+                  onClick={() => setMenuCrimesAberto(!menuCrimesAberto)}
+                >
+                  <ChevronDown className={`text-slate-500 transition-transform ${menuCrimesAberto ? 'rotate-180' : ''}`} size={20} />
+                </div>
+                
+                {menuCrimesAberto && (
                   <div className="absolute top-full left-0 w-full mt-2 bg-slate-800 border border-emerald-500/50 rounded-xl shadow-2xl overflow-hidden max-h-[300px] overflow-y-auto custom-scrollbar z-50">
-                    {resultadosBusca.map((crime, idx) => (
-                      <div key={idx} onClick={() => handleAddCrime(crime)} className="p-4 border-b border-slate-700 hover:bg-emerald-900/40 cursor-pointer flex justify-between items-center transition-colors">
-                        <div>
-                          <span className="text-emerald-400 font-black text-xs uppercase tracking-widest mr-2">{crime.artigo}</span>
-                          <span className="text-white font-bold">{crime.nome}</span>
+                    {crimesFiltrados.length > 0 ? (
+                      crimesFiltrados.map((crime, idx) => (
+                        <div 
+                          key={idx} 
+                          onClick={() => handleAddCrime(crime)} 
+                          className="p-4 border-b border-slate-700 hover:bg-emerald-900/40 cursor-pointer flex justify-between items-center transition-colors"
+                        >
+                          <div>
+                            <span className="text-emerald-400 font-black text-xs uppercase tracking-widest mr-2">{crime.artigo}</span>
+                            <span className="text-white font-bold">{crime.nome}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className={`block text-sm font-mono font-bold ${crime.pena === 'BAN' ? 'text-red-500' : 'text-slate-300'}`}>
+                              {crime.pena === 'BAN' ? 'BANIMENTO' : crime.pena + ' Meses'}
+                            </span>
+                            <span className="block text-emerald-500 text-xs font-mono">${crime.multa.toLocaleString('pt-BR')}</span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <span className={`block text-sm font-mono font-bold ${crime.pena === 'BAN' ? 'text-red-500' : 'text-slate-300'}`}>{crime.pena === 'BAN' ? 'BANIMENTO' : crime.pena + ' Meses'}</span>
-                          <span className="block text-emerald-500 text-xs font-mono">${crime.multa.toLocaleString('pt-BR')}</span>
-                        </div>
+                      ))
+                    ) : (
+                      <div className="p-6 text-center text-slate-400 text-sm font-bold uppercase tracking-widest">
+                        Nenhum crime corresponde à pesquisa.
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>

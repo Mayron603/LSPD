@@ -3,7 +3,8 @@ import {
   Search, User, AlertTriangle, ShieldAlert, Car, 
   Users, Briefcase, FileText, Camera, MapPin, 
   Crosshair, ChevronRight, FileWarning, DollarSign, 
-  Clock, PlusCircle, Save, Fingerprint, Terminal, Activity, FileKey
+  Clock, PlusCircle, Save, Fingerprint, Terminal, Activity, FileKey,
+  Trash2 // <-- Novo ícone importado
 } from 'lucide-react';
 
 export default function BancoCriminal() {
@@ -28,6 +29,31 @@ export default function BancoCriminal() {
       }
     } catch (error) {
       console.error("Erro ao carregar banco de dados:", error);
+    }
+  };
+
+  // Função para APAGAR o registo
+  const handleExcluirRegistro = async (id) => {
+    if (!window.confirm("ATENÇÃO: Tem a certeza absoluta que deseja APAGAR este dossiê permanentemente? Esta ação não pode ser desfeita.")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/banco-criminal?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await buscarFichas(); // Atualiza a lista
+        setView('busca');
+        setFichaAtual(null);
+        setMensagemBusca('DOSSIÊ APAGADO COM SUCESSO DO SISTEMA.');
+      } else {
+        alert("Erro ao tentar apagar o registo.");
+      }
+    } catch (error) {
+      console.error("Erro ao apagar:", error);
+      alert("Falha de comunicação com o servidor.");
     }
   };
 
@@ -77,7 +103,6 @@ export default function BancoCriminal() {
       });
 
       if (response.ok) {
-        // Limpa o formulário todo após criar
         setFormData({ 
           nome: '', apelido: '', passaporte: '', nascimento: '', telefone: '', endereco: '', 
           status: 'Limpo', periculosidade: 'Baixo', veiculos: '', associacoes: '', historico: '', prisoes: '', multas: '', mandados: '', notas: '' 
@@ -98,7 +123,7 @@ export default function BancoCriminal() {
   return (
     <div className="min-h-screen bg-slate-950 pt-28 pb-20 text-slate-50 relative overflow-hidden">
       
-      {/* Luzes de Fundo (Ambiente Tático) */}
+      {/* Luzes de Fundo */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-900/20 blur-[150px] rounded-full pointer-events-none z-0"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-900/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
 
@@ -120,7 +145,6 @@ export default function BancoCriminal() {
               </h1>
             </div>
             
-            {/* Navegação */}
             <div className="flex flex-wrap gap-3 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 backdrop-blur-md">
               <button onClick={() => { setView('busca'); setFichaAtual(null); setMensagemBusca(''); }}
                 className={`px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${view === 'busca' || view === 'perfil' ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
@@ -164,19 +188,84 @@ export default function BancoCriminal() {
               </div>
             )}
 
+            {/* LISTA DE REGISTROS NA TELA DE BUSCA */}
             {view === 'busca' && !mensagemBusca && (
-              <div className="flex flex-col items-center justify-center p-20 border border-dashed border-slate-700/50 rounded-3xl bg-slate-900/30 backdrop-blur-sm">
-                <div className="relative mb-6">
-                  <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-20 animate-pulse"></div>
-                  <Terminal className="w-20 h-20 text-slate-600 relative z-10" strokeWidth={1} />
-                </div>
-                <h3 className="text-2xl font-bold text-slate-300 mb-3 tracking-tight">SISTEMA LSPD PRONTO</h3>
-                <p className="text-slate-500 font-mono text-sm">
-                  {fichasNoBanco.length > 0 
-                    ? `[ BASE DE DADOS: ${fichasNoBanco.length} REGISTROS CARREGADOS ]`
-                    : "[ BASE DE DADOS VAZIA. AGUARDANDO INSERÇÃO DE DADOS. ]"}
-                </p>
-              </div>
+              <>
+                {fichasNoBanco.length > 0 ? (
+                  <div className="space-y-6 animate-in fade-in duration-500">
+                    <div className="flex items-center gap-3 border-b border-slate-800/50 pb-3">
+                      <Users className="text-blue-500" size={20} />
+                      <h3 className="text-lg font-black text-slate-300 uppercase tracking-widest">
+                        Registros no Banco de Dados ({fichasNoBanco.length})
+                      </h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {fichasNoBanco.map((ficha) => (
+                        <div 
+                          key={ficha._id || ficha.passaporte}
+                          onClick={() => { setFichaAtual(ficha); setView('perfil'); }}
+                          className="bg-slate-900/80 border border-slate-700/50 rounded-2xl p-6 cursor-pointer hover:border-blue-500/50 hover:bg-slate-800/80 hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden shadow-lg"
+                        >
+                          <div className={`absolute top-0 left-0 w-1.5 h-full ${['Procurado', 'Foragido', 'Preso'].includes(ficha.status) ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'bg-emerald-500'}`}></div>
+                          
+                          <div className="flex justify-between items-start mb-4 relative z-10">
+                            <div>
+                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
+                                <Fingerprint size={10} /> ID: {ficha.passaporte}
+                              </p>
+                              <h4 className="text-xl font-black text-white uppercase group-hover:text-blue-400 transition-colors">{ficha.nome}</h4>
+                              {ficha.apelido && <p className="text-xs text-slate-400 font-medium italic mt-0.5">"{ficha.apelido}"</p>}
+                            </div>
+                            
+                            {/* BOTÃO DE APAGAR NO CARD */}
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={(e) => { 
+                                  e.stopPropagation(); // Evita abrir o perfil ao clicar na lixeira
+                                  handleExcluirRegistro(ficha._id); 
+                                }}
+                                className="p-2 bg-slate-950/50 rounded-lg border border-slate-800 hover:bg-red-600 hover:text-white hover:border-red-500 text-slate-500 transition-colors"
+                                title="Apagar Registo"
+                              >
+                                <Trash2 size={20} />
+                              </button>
+                              <div className="p-2 bg-slate-950/50 rounded-lg border border-slate-800 group-hover:border-blue-500/30 transition-colors">
+                                <User className="text-slate-500 group-hover:text-blue-400" size={20} />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2 relative z-10">
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${['Procurado', 'Foragido', 'Preso'].includes(ficha.status) ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}>
+                              {ficha.status || 'Limpo'}
+                            </span>
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${
+                              ficha.periculosidade === 'Extremo' ? 'bg-red-600 text-white border-red-500' : 
+                              ficha.periculosidade === 'Alto' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : 
+                              ficha.periculosidade === 'Médio' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : 
+                              'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                            }`}>
+                              Risco {ficha.periculosidade || 'Baixo'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-20 border border-dashed border-slate-700/50 rounded-3xl bg-slate-900/30 backdrop-blur-sm">
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-20 animate-pulse"></div>
+                      <Terminal className="w-20 h-20 text-slate-600 relative z-10" strokeWidth={1} />
+                    </div>
+                    <h3 className="text-2xl font-bold text-slate-300 mb-3 tracking-tight">SISTEMA LSPD PRONTO</h3>
+                    <p className="text-slate-500 font-mono text-sm">
+                      [ BASE DE DADOS VAZIA. AGUARDANDO INSERÇÃO DE DADOS. ]
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Ficha do Cidadão (PERFIL COMPLETO) */}
@@ -256,6 +345,14 @@ export default function BancoCriminal() {
                    </h3>
                    <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{fichaAtual.associacoes || 'Nenhuma facção ou gangue registrada.'}</p>
                  </div>
+
+                 {/* BOTÃO PARA APAGAR O DOSSIÊ NO PERFIL */}
+                 <button 
+                   onClick={() => handleExcluirRegistro(fichaAtual._id)}
+                   className="w-full flex items-center justify-center gap-2 bg-red-950/30 border border-red-900/50 text-red-500 hover:bg-red-600 hover:text-white py-4 rounded-3xl font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-[0_0_20px_rgba(220,38,38,0.4)]"
+                 >
+                   <Trash2 size={18} /> Apagar Dossiê do Sistema
+                 </button>
 
                </div>
 
