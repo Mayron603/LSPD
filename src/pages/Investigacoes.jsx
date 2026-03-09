@@ -6,14 +6,17 @@ import {
   Fingerprint, History, Image as ImageIcon, Video, UserPlus, Link, ShieldCheck
 } from 'lucide-react';
 
+// IMPORTAÇÃO OBRIGATÓRIA PARA A BLINDAGEM FUNCIONAR
+import { fetchSeguro } from '../lib/api';
+
 const ESTADO_INICIAL_FORMULARIO = {
   nome: '', tipo: '', descricao: '', local: '', detalhesLocal: '', 
   veiculos: '', armas: '', suspeitos: '', evidencias: '', conclusao: '',
   prioridade: 'Média', status: 'Em investigação', progresso: 0,
   investigador: JSON.parse(localStorage.getItem('usuario') || '{}').nome || 'Agente FIB',
   diligencias: [],
-  oficiaisEnvolvidos: [], // NOVO: Equipe do caso
-  anexos: [], // NOVO: Imagens e Vídeos
+  oficiaisEnvolvidos: [], // Equipe do caso
+  anexos: [], // Imagens e Vídeos
   novoEventoTimeline: '' 
 };
 
@@ -34,12 +37,12 @@ export default function Investigacoes() {
   const fetchCasos = async () => {
     setLoading(true);
     try {
-      // NOTA: Se já implementaste a blindagem, muda 'fetch' para 'fetchSeguro'
-      const res = await fetch('/api/investigacoes');
+      // USANDO FETCH SEGURO AQUI
+      const res = await fetchSeguro('/api/investigacoes');
       const data = await res.json();
       setCasos(data);
     } catch (err) {
-      console.error("Erro ao carregar investigações");
+      console.error("Erro ao carregar investigações:", err);
     } finally {
       setLoading(false);
     }
@@ -140,16 +143,15 @@ export default function Investigacoes() {
       };
       delete payload.novoEventoTimeline; 
 
-      // NOTA: Usa 'fetchSeguro' se já aplicaste a blindagem no passo anterior
-      const res = await fetch(url, {
+      // USANDO FETCH SEGURO AQUI
+      const res = await fetchSeguro(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         if (isEditing) {
-          const dadosAtualizados = await fetch('/api/investigacoes').then(r => r.json());
+          const dadosAtualizados = await fetchSeguro('/api/investigacoes').then(r => r.json());
           setSelectedCase(dadosAtualizados.find(c => c._id === formData._id));
           setView('detalhes');
         } else {
@@ -158,6 +160,7 @@ export default function Investigacoes() {
         fetchCasos();
       }
     } catch (err) {
+      console.error(err);
       alert("Erro ao salvar no banco de dados da FIB");
     }
   };
@@ -165,7 +168,8 @@ export default function Investigacoes() {
   const handleExcluir = async (id, e) => {
     if(e) e.stopPropagation();
     if (confirm("AUTORIZAÇÃO FEDERAL EXIGIDA: Deseja apagar este dossiê permanentemente da rede?")) {
-      await fetch(`/api/investigacoes?id=${id}`, { method: 'DELETE' });
+      // USANDO FETCH SEGURO AQUI
+      await fetchSeguro(`/api/investigacoes?id=${id}`, { method: 'DELETE' });
       fetchCasos();
       if (view === 'detalhes') setView('lista');
     }
