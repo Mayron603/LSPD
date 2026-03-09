@@ -3,7 +3,7 @@ import {
   Briefcase, Users, Target, Clock, AlertCircle, 
   Plus, Search, FileText, ChevronRight, Edit, CheckSquare,
   MapPin, Car, Save, ArrowLeft, Trash2, Camera, Shield, UserX, 
-  Fingerprint, History, Image as ImageIcon, Video, UserPlus, Link, ShieldCheck
+  Fingerprint, History, Image as ImageIcon, Video, UserPlus, Link, ShieldCheck, XCircle
 } from 'lucide-react';
 
 // IMPORTAÇÃO OBRIGATÓRIA PARA A BLINDAGEM FUNCIONAR

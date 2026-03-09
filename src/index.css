@@ -18,3 +18,35 @@ html.light-theme img,
 html.light-theme video {
   filter: invert(1) hue-rotate(180deg);
 }
+/* ==========================================
+   ESTILIZAÇÃO DA SCROLLBAR - TEMA LSPD (GLOBAL)
+   ========================================== */
+
+/* Aplica para a página inteira E para componentes internos */
+::-webkit-scrollbar {
+  width: 8px; /* Ligeiramente mais grossa para a página principal não ficar difícil de clicar */
+  height: 8px;
+}
+
+/* Fundo da barra (trilha) combinando com o fundo do site (slate-950) */
+::-webkit-scrollbar-track {
+  background: #020617; 
+}
+
+/* O "polegar" (a parte que você arrasta) */
+::-webkit-scrollbar-thumb {
+  background-color: #1e293b; /* slate-800 */
+  border-radius: 10px;
+  border: 2px solid #020617; /* Cria um "espaço" falso ao redor da barra */
+}
+
+/* O "polegar" quando passa o mouse por cima */
+::-webkit-scrollbar-thumb:hover {
+  background-color: #3b82f6; /* blue-500 (Glow policial) */
+}
+
+/* Suporte para Firefox (Global) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e293b #020617;
+}
