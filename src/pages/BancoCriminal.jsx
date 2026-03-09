@@ -4,7 +4,7 @@ import {
   Users, Briefcase, FileText, Camera, MapPin, 
   Crosshair, ChevronRight, FileWarning, DollarSign, 
   Clock, PlusCircle, Save, Fingerprint, Terminal, Activity, FileKey,
-  Trash2 // <-- Novo ícone importado
+  Trash2, Phone // <-- Adicionado ícone de Telefone
 } from 'lucide-react';
 
 export default function BancoCriminal() {
@@ -212,17 +212,17 @@ export default function BancoCriminal() {
                           <div className="flex justify-between items-start mb-4 relative z-10">
                             <div>
                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
-                                <Fingerprint size={10} /> ID: {ficha.passaporte}
+                                <Fingerprint size={10} /> PASSAPORTE: {ficha.passaporte}
                               </p>
                               <h4 className="text-xl font-black text-white uppercase group-hover:text-blue-400 transition-colors">{ficha.nome}</h4>
-                              {ficha.apelido && <p className="text-xs text-slate-400 font-medium italic mt-0.5">"{ficha.apelido}"</p>}
+                              {ficha.apelido && <p className="text-xs text-slate-400 font-medium italic mt-0.5">Vulgo: "{ficha.apelido}"</p>}
                             </div>
                             
                             {/* BOTÃO DE APAGAR NO CARD */}
                             <div className="flex gap-2">
                               <button 
                                 onClick={(e) => { 
-                                  e.stopPropagation(); // Evita abrir o perfil ao clicar na lixeira
+                                  e.stopPropagation(); 
                                   handleExcluirRegistro(ficha._id); 
                                 }}
                                 className="p-2 bg-slate-950/50 rounded-lg border border-slate-800 hover:bg-red-600 hover:text-white hover:border-red-500 text-slate-500 transition-colors"
@@ -289,9 +289,11 @@ export default function BancoCriminal() {
                           <Fingerprint size={24} />
                         </div>
                      </div>
-
+                     
+                     {/* Rótulos para o Nome Adicionados */}
+                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Nome Registrado</p>
                      <h2 className="text-3xl font-black uppercase tracking-tight text-white mb-1">{fichaAtual.nome}</h2>
-                     <p className="text-blue-400 font-bold tracking-widest text-sm mb-5 uppercase">VULGO: "{fichaAtual.apelido || 'N/A'}"</p>
+                     <p className="text-blue-400 font-bold tracking-widest text-sm mb-5 uppercase">VULGO: "{fichaAtual.apelido || 'NÃO REGISTRADO'}"</p>
                      
                      <div className={`inline-flex items-center gap-2 text-white px-5 py-2 rounded-lg font-black uppercase tracking-widest text-sm shadow-xl ${['Procurado', 'Foragido', 'Preso'].includes(fichaAtual.status) ? 'bg-red-600/20 border border-red-500/50 text-red-500 animate-pulse' : 'bg-emerald-600/20 border border-emerald-500/50 text-emerald-500'}`}>
                        {['Procurado', 'Foragido', 'Preso'].includes(fichaAtual.status) ? <AlertTriangle size={16} strokeWidth={3} /> : <ShieldAlert size={16} strokeWidth={3} />}
@@ -299,31 +301,45 @@ export default function BancoCriminal() {
                      </div>
                    </div>
                    
+                   {/* DADOS BÁSICOS ORGANIZADOS EM CARTÕES */}
                    <div className="bg-slate-950/50 border-t border-slate-800 p-6">
-                     <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                       <div>
-                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Passaporte</p>
+                     <div className="grid grid-cols-2 gap-4">
+                       
+                       <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800/50 flex flex-col justify-center">
+                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                           <FileText size={12}/> Passaporte
+                         </p>
                          <p className="font-mono text-blue-300 font-bold text-lg">{fichaAtual.passaporte}</p>
                        </div>
-                       <div>
-                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Nascimento</p>
-                         <p className="font-mono text-slate-300">{fichaAtual.nascimento || '---'}</p>
+                       
+                       <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800/50 flex flex-col justify-center">
+                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                           <Clock size={12}/> Nascimento
+                         </p>
+                         <p className="font-mono text-slate-300 font-bold">{fichaAtual.nascimento || '---'}</p>
                        </div>
-                       <div className="col-span-2">
-                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Telefone</p>
-                         <p className="font-mono text-slate-300">{fichaAtual.telefone || '---'}</p>
+                       
+                       <div className="col-span-2 bg-slate-900/50 p-3 rounded-lg border border-slate-800/50 flex flex-col justify-center">
+                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                           <Phone size={12}/> Telefone
+                         </p>
+                         <p className="font-mono text-slate-300 font-bold text-base">{fichaAtual.telefone || '---'}</p>
                        </div>
-                       <div className="col-span-2 bg-slate-900/50 p-3 rounded-lg border border-slate-800/50">
-                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1"><MapPin size={12}/> Última Residência</p>
-                         <p className="text-slate-300 text-sm leading-relaxed">{fichaAtual.endereco || 'Desconhecido'}</p>
+                       
+                       <div className="col-span-2 bg-slate-900/50 p-3 rounded-lg border border-slate-800/50 flex flex-col justify-center">
+                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                           <MapPin size={12}/> Última Residência
+                         </p>
+                         <p className="text-slate-300 text-sm leading-relaxed font-bold">{fichaAtual.endereco || 'Desconhecido'}</p>
                        </div>
+
                      </div>
                    </div>
                  </div>
 
                  <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl">
                    <div className="flex justify-between items-end mb-4">
-                     <h3 className="font-bold uppercase text-xs text-slate-400 tracking-widest">Ameaça</h3>
+                     <h3 className="font-bold uppercase text-xs text-slate-400 tracking-widest">Nível de Ameaça</h3>
                      <span className={`text-xs font-black uppercase px-2 py-0.5 rounded ${
                         fichaAtual.periculosidade === 'Baixo' ? 'bg-emerald-500/20 text-emerald-400' : 
                         fichaAtual.periculosidade === 'Médio' ? 'bg-yellow-500/20 text-yellow-400' : 
