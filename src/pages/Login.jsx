@@ -1,43 +1,51 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Shield, Lock, Mail, ShieldAlert } from 'lucide-react'; // Trocamos o ícone User pelo Mail
+import { Shield, Lock, Mail } from 'lucide-react';
+import toast from 'react-hot-toast'; // Notificações modernas
+import { useAuth } from '../contexts/AuthContext'; // O nosso novo contexto
 
 export default function Login() {
-  const [email, setEmail] = useState(''); // Estado agora é Email
-  const [senha, setSenha] = useState(''); // Estado agora é Senha
-  const [status, setStatus] = useState({ type: '', message: '' });
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
   const navigate = useNavigate();
+  const { login } = useAuth(); // Importa a função login do Contexto
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setStatus({ type: 'loading', message: 'Estabelecendo conexão segura...' });
+    setIsLoading(true);
+    
+    // Mostra um toast de carregamento
+    const toastId = toast.loading('A estabelecer ligação segura...');
 
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, senha }), // Agora envia o email e a senha pro backend
+        body: JSON.stringify({ email, senha }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        localStorage.setItem('autenticado', 'true');
-        localStorage.setItem('usuario', JSON.stringify(data.user));
-
-        setStatus({ type: 'success', message: `Acesso autorizado. Bem-vindo, ${data.user.nome}!` });
-        setTimeout(() => navigate('/'), 2000); 
+        // Usa a função login do contexto, passando os dados e o Token
+        login(data.user, data.token);
+        
+        toast.success(`Acesso autorizado. Bem-vindo, ${data.user.nome}!`, { id: toastId });
+        setTimeout(() => navigate('/'), 1500); 
       } else {
-        setStatus({ type: 'error', message: data.message || 'Credenciais inválidas.' });
+        toast.error(data.message || 'Credenciais inválidas.', { id: toastId });
       }
     } catch (error) {
-      setStatus({ type: 'error', message: 'Erro de conexão com os servidores LSPD.' });
+      toast.error('Erro de ligação com os servidores LSPD.', { id: toastId });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Efeitos de Fundo */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-red-600/10 blur-[120px] rounded-full"></div>
 
@@ -61,14 +69,14 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-slate-950/50 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                placeholder="seu@email.com"
+                placeholder="agente@lspd.com"
                 required 
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Senha de Segurança</label>
+            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Palavra-passe de Segurança</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
               <input 
@@ -81,24 +89,13 @@ export default function Login() {
               />
             </div>
           </div>
-          
-          {status.message && (
-            <div className={`p-4 rounded-lg text-sm text-center font-bold flex items-center justify-center gap-2 ${
-              status.type === 'error' ? 'bg-red-950/50 text-red-400 border border-red-900/50' : 
-              status.type === 'success' ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900/50' : 
-              'bg-blue-950/50 text-blue-400 border border-blue-900/50'
-            }`}>
-              {status.type === 'error' && <ShieldAlert size={16} />}
-              {status.message}
-            </div>
-          )}
 
           <button 
             type="submit" 
-            disabled={status.type === 'loading'}
+            disabled={isLoading}
             className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white font-black py-4 px-4 rounded-lg uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-50 shadow-[0_0_20px_rgba(37,99,235,0.2)]"
           >
-            {status.type === 'loading' ? 'Verificando...' : 'Autenticar'}
+            {isLoading ? 'A Verificar...' : 'Autenticar'}
           </button>
         </form>
 
@@ -106,7 +103,7 @@ export default function Login() {
           <p className="text-slate-500 text-sm">
             Não possui credenciais? <br/>
             <Link to="/registro" className="text-blue-400 font-bold hover:text-blue-300 transition-colors uppercase text-xs tracking-widest mt-2 inline-block">
-              Solicitar Registro no Sistema
+              Solicitar Registo no Sistema
             </Link>
           </p>
         </div>
