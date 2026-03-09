@@ -12,7 +12,6 @@ import BancoCriminal from './pages/BancoCriminal';
 import Investigacoes from './pages/Investigacoes';
 import Operacoes from './pages/Operacoes';
 import PainelComando from './pages/PainelComando'; 
-import PorteArma from './pages/PorteArma';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import PainelAdmin from './pages/PainelAdmin';
@@ -69,7 +68,6 @@ function AppContent() {
           <Route path="/operacoes" element={<RotaPrivada><Operacoes /></RotaPrivada>} />
           <Route path="/comando" element={<RotaPrivada><PainelComando /></RotaPrivada>} />
           <Route path="/calculadora" element={<RotaPrivada><CalculadoraPenal /></RotaPrivada>} />
-
           <Route path="/admin" element={<RotaAdmin><PainelAdmin /></RotaAdmin>} />
         </Routes>
       </LayoutComNavbar>
