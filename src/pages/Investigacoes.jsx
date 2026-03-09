@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { 
   Briefcase, Users, Target, Clock, AlertCircle, 
   Plus, Search, FileText, ChevronRight, Edit, CheckSquare,
-  MapPin, Car, Save, ArrowLeft, Trash2, Camera, Shield, UserX, Fingerprint, History
+  MapPin, Car, Save, ArrowLeft, Trash2, Camera, Shield, UserX, 
+  Fingerprint, History, Image as ImageIcon, Video, UserPlus, Link, ShieldCheck
 } from 'lucide-react';
 
 const ESTADO_INICIAL_FORMULARIO = {
@@ -10,8 +11,10 @@ const ESTADO_INICIAL_FORMULARIO = {
   veiculos: '', armas: '', suspeitos: '', evidencias: '', conclusao: '',
   prioridade: 'Média', status: 'Em investigação', progresso: 0,
   investigador: JSON.parse(localStorage.getItem('usuario') || '{}').nome || 'Agente FIB',
-  diligencias: [], // NOVO: Checklist de tarefas
-  novoEventoTimeline: '' // Usado apenas no frontend para adicionar à timeline
+  diligencias: [],
+  oficiaisEnvolvidos: [], // NOVO: Equipe do caso
+  anexos: [], // NOVO: Imagens e Vídeos
+  novoEventoTimeline: '' 
 };
 
 export default function Investigacoes() {
@@ -21,11 +24,17 @@ export default function Investigacoes() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(ESTADO_INICIAL_FORMULARIO);
+  
+  // Estados para os inputs de listas
   const [diligenciaInput, setDiligenciaInput] = useState('');
+  const [oficialInput, setOficialInput] = useState('');
+  const [anexoUrl, setAnexoUrl] = useState('');
+  const [anexoTipo, setAnexoTipo] = useState('imagem');
 
   const fetchCasos = async () => {
     setLoading(true);
     try {
+      // NOTA: Se já implementaste a blindagem, muda 'fetch' para 'fetchSeguro'
       const res = await fetch('/api/investigacoes');
       const data = await res.json();
       setCasos(data);
@@ -48,6 +57,8 @@ export default function Investigacoes() {
       setFormData({
         ...casoEdit,
         diligencias: casoEdit.diligencias || [],
+        oficiaisEnvolvidos: casoEdit.oficiaisEnvolvidos || [],
+        anexos: casoEdit.anexos || [],
         novoEventoTimeline: ''
       });
       setIsEditing(true);
@@ -58,7 +69,7 @@ export default function Investigacoes() {
     setView('formulario');
   };
 
-  // Funções do novo sistema de Diligências (Tarefas)
+  // --- Funções de Arrays (Diligências, Oficiais, Anexos) ---
   const addDiligencia = () => {
     if (!diligenciaInput.trim()) return;
     const novasDiligencias = [...formData.diligencias, { id: Date.now(), texto: diligenciaInput, concluida: false }];
@@ -67,9 +78,7 @@ export default function Investigacoes() {
   };
 
   const toggleDiligencia = (id) => {
-    const novasDiligencias = formData.diligencias.map(d => 
-      d.id === id ? { ...d, concluida: !d.concluida } : d
-    );
+    const novasDiligencias = formData.diligencias.map(d => d.id === id ? { ...d, concluida: !d.concluida } : d);
     setFormData({ ...formData, diligencias: novasDiligencias, progresso: calcularProgresso(novasDiligencias) });
   };
 
@@ -79,25 +88,45 @@ export default function Investigacoes() {
   };
 
   const calcularProgresso = (diligencias) => {
-    if (!diligencias || diligencias.length === 0) return formData.progresso; // Mantém manual se não houver checklist
+    if (!diligencias || diligencias.length === 0) return formData.progresso;
     const concluidas = diligencias.filter(d => d.concluida).length;
     return Math.round((concluidas / diligencias.length) * 100);
   };
 
+  const addOficial = () => {
+    if (!oficialInput.trim()) return;
+    setFormData({ ...formData, oficiaisEnvolvidos: [...formData.oficiaisEnvolvidos, oficialInput.trim()] });
+    setOficialInput('');
+  };
+
+  const removerOficial = (index) => {
+    const novosOficiais = [...formData.oficiaisEnvolvidos];
+    novosOficiais.splice(index, 1);
+    setFormData({ ...formData, oficiaisEnvolvidos: novosOficiais });
+  };
+
+  const addAnexo = () => {
+    if (!anexoUrl.trim()) return;
+    const novoAnexo = { id: Date.now(), tipo: anexoTipo, url: anexoUrl.trim() };
+    setFormData({ ...formData, anexos: [...formData.anexos, novoAnexo] });
+    setAnexoUrl('');
+  };
+
+  const removerAnexo = (id) => {
+    setFormData({ ...formData, anexos: formData.anexos.filter(a => a.id !== id) });
+  };
+
+  // --- Salvar e Excluir ---
   const handleSalvar = async (e) => {
     e.preventDefault();
     try {
       const url = '/api/investigacoes';
       const method = isEditing ? 'PUT' : 'POST';
-      
       let timelineAtualizada = formData.timeline || [];
       
-      // Cria a timeline inicial no POST
       if (!isEditing) {
         timelineAtualizada = [{ data: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR').slice(0,5), evento: "Inquérito Federal Aberto" }];
-      } 
-      // Adiciona novo evento se estiver editando e o campo foi preenchido
-      else if (formData.novoEventoTimeline.trim() !== '') {
+      } else if (formData.novoEventoTimeline.trim() !== '') {
         timelineAtualizada = [
           { data: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR').slice(0,5), evento: formData.novoEventoTimeline },
           ...timelineAtualizada
@@ -109,9 +138,9 @@ export default function Investigacoes() {
         timeline: timelineAtualizada,
         id: isEditing ? formData.id : `FIB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
       };
-      
-      delete payload.novoEventoTimeline; // Limpa para não salvar lixo no banco
+      delete payload.novoEventoTimeline; 
 
+      // NOTA: Usa 'fetchSeguro' se já aplicaste a blindagem no passo anterior
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -145,13 +174,12 @@ export default function Investigacoes() {
   return (
     <div className="min-h-screen bg-slate-950 pt-32 pb-20 text-slate-50 font-sans relative overflow-hidden">
       
-      {/* Luzes Estilo Inteligência (Cyan/Azul Profundo) */}
       <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-cyan-900/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-blue-900/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-900/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
 
       <div className="max-w-7xl mx-auto px-4 lg:px-8 relative z-10">
         
-        {/* Cabeçalho */}
+        {/* CABEÇALHO */}
         <div className="flex flex-col md:flex-row justify-between md:items-end mb-8 border-b border-slate-800 pb-6 gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/30 border border-cyan-900/50 text-cyan-400 text-xs font-mono mb-4">
@@ -185,7 +213,7 @@ export default function Investigacoes() {
           <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1 group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-xl blur opacity-10 group-hover:opacity-20 transition duration-500"></div>
+                <div className="absolute -inset-1 bg-gradient-to-r from-cyan-600 to-indigo-600 rounded-xl blur opacity-10 group-hover:opacity-20 transition duration-500"></div>
                 <div className="relative bg-slate-900 border border-slate-700/50 rounded-xl flex items-center shadow-xl">
                   <Search className="absolute left-4 text-cyan-500" size={20} />
                   <input type="text" placeholder="Buscar dossiê por alvo, tipo ou ID..." className="w-full bg-transparent border-none py-4 pl-12 pr-4 text-white placeholder:text-slate-500 focus:ring-0 outline-none" />
@@ -201,7 +229,7 @@ export default function Investigacoes() {
                 <thead className="bg-slate-950/80 text-cyan-500 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
                   <tr>
                     <th className="px-6 py-5">Código / Alvo (Operação)</th>
-                    <th className="px-6 py-5">Agente Encarregado</th>
+                    <th className="px-6 py-5">Equipe Encarregada</th>
                     <th className="px-6 py-5">Status Operacional</th>
                     <th className="px-6 py-5 text-right">Ações</th>
                   </tr>
@@ -220,8 +248,15 @@ export default function Investigacoes() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-slate-300 font-bold text-xs uppercase tracking-wider">
-                           <UserX size={14} className="text-slate-500"/> {c.investigador}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 text-slate-200 font-bold text-xs uppercase tracking-wider">
+                             <UserX size={14} className="text-slate-500"/> LÍDER: {c.investigador}
+                          </div>
+                          {c.oficiaisEnvolvidos && c.oficiaisEnvolvidos.length > 0 && (
+                            <div className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">
+                              + {c.oficiaisEnvolvidos.length} Oficial(is)
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -261,29 +296,53 @@ export default function Investigacoes() {
               
               {/* Relatório Principal */}
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-                <div className="absolute right-0 top-0 opacity-5 pointer-events-none"><Fingerprint size={250} className="-mt-10 -mr-10"/></div>
+                <div className="absolute right-0 top-0 opacity-5 pointer-events-none text-white"><Fingerprint size={250} className="-mt-10 -mr-10"/></div>
+                
+                {/* Etiqueta Classificada */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 opacity-5 pointer-events-none select-none">
+                  <span className="text-8xl font-black tracking-[0.5em] text-red-500 border-8 border-red-500 px-8 py-2 rounded-3xl">CLASSIFIED</span>
+                </div>
                 
                 <div className="flex gap-2 mb-4 relative z-10">
-                  <span className="bg-red-900/20 text-red-500 border border-red-500/30 px-3 py-1 rounded text-[10px] font-black tracking-widest uppercase">Nível de Sigilo: Alto</span>
+                  <span className="bg-red-900/20 text-red-500 border border-red-500/30 px-3 py-1 rounded text-[10px] font-black tracking-widest uppercase">Nível de Sigilo: {selectedCase.prioridade === 'Alta' ? 'Máximo' : 'Padrão'}</span>
                   <span className="bg-slate-800 text-cyan-400 border border-slate-700 px-3 py-1 rounded text-[10px] font-mono tracking-widest uppercase">{selectedCase.id}</span>
                 </div>
 
-                <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-2 relative z-10">{selectedCase.nome}</h2>
-                <div className="flex gap-4 mb-8 border-b border-slate-800 pb-4 relative z-10">
-                  <p className="text-cyan-500 font-bold tracking-widest text-xs uppercase flex items-center gap-1.5"><Target size={14}/> TIPO: {selectedCase.tipo}</p>
-                  <p className="text-slate-400 font-bold tracking-widest text-xs uppercase flex items-center gap-1.5"><UserX size={14}/> AGENTE: {selectedCase.investigador}</p>
+                <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-4 relative z-10">{selectedCase.nome}</h2>
+                
+                <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-5 mb-8 relative z-10 flex flex-col sm:flex-row gap-6">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Tipo de Crime</p>
+                    <p className="text-cyan-500 font-bold uppercase">{selectedCase.tipo}</p>
+                  </div>
+                  <div className="sm:border-l border-slate-800 sm:pl-6">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Agente Líder</p>
+                    <p className="text-slate-200 font-bold uppercase flex items-center gap-2"><UserX size={14} className="text-slate-500"/> {selectedCase.investigador}</p>
+                  </div>
+                  {/* Lista de Oficiais Envolvidos */}
+                  {selectedCase.oficiaisEnvolvidos && selectedCase.oficiaisEnvolvidos.length > 0 && (
+                    <div className="sm:border-l border-slate-800 sm:pl-6 flex-1">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Equipe Designada</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedCase.oficiaisEnvolvidos.map((oficial, idx) => (
+                          <span key={idx} className="bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase flex items-center gap-1.5 shadow-sm">
+                            <ShieldCheck size={12} className="text-cyan-500" /> {oficial}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <h3 className="text-xs font-black text-slate-500 uppercase mb-3 tracking-widest flex items-center gap-2"><FileText size={16}/> Resumo Executivo dos Fatos</h3>
-                <p className="text-slate-300 leading-relaxed font-mono bg-slate-950/50 p-5 rounded-2xl border border-slate-800 relative z-10 whitespace-pre-wrap text-sm">
+                <p className="text-slate-300 leading-relaxed font-mono bg-slate-950/50 p-6 rounded-2xl border border-slate-800 relative z-10 whitespace-pre-wrap text-sm shadow-inner">
                   {selectedCase.descricao || 'Sem descrição inserida.'}
                 </p>
               </div>
 
-              {/* Grid de Inteligência */}
+              {/* Grid de Inteligência Misto */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                {/* Checklists (Diligências) */}
                 <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl lg:col-span-2">
                   <h3 className="text-xs font-black text-cyan-500 uppercase mb-4 flex items-center gap-2 tracking-widest border-b border-slate-800 pb-3"><CheckSquare size={16}/> Diligências e Tarefas ({selectedCase.diligencias?.length || 0})</h3>
                   {selectedCase.diligencias && selectedCase.diligencias.length > 0 ? (
@@ -308,27 +367,33 @@ export default function Investigacoes() {
                 </div>
 
                 <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
-                  <h3 className="text-xs font-black text-emerald-500 uppercase mb-4 flex items-center gap-2 tracking-widest"><Camera size={16}/> Provas e Evidências</h3>
-                  <p className="text-sm text-slate-300 whitespace-pre-wrap bg-emerald-950/10 p-4 rounded-xl border border-emerald-900/30 leading-relaxed font-mono">{selectedCase.evidencias || 'Nenhuma prova material coletada.'}</p>
-                </div>
-                
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl lg:col-span-2 flex flex-col sm:flex-row gap-6">
-                  <div className="flex-1">
-                    <h3 className="text-xs font-black text-slate-500 uppercase mb-3 flex items-center gap-2 tracking-widest"><MapPin size={16}/> Localização</h3>
-                    <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
-                      <p className="text-sm font-bold text-white mb-1">{selectedCase.local || 'Desconhecido'}</p>
-                      <p className="text-xs text-slate-400">{selectedCase.detalhesLocal}</p>
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xs font-black text-slate-500 uppercase mb-3 flex items-center gap-2 tracking-widest"><Car size={16}/> Logística (Armas/Veículos)</h3>
-                    <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 space-y-2">
-                      <p className="text-sm text-slate-300"><span className="text-slate-500 font-black text-[10px] uppercase block tracking-widest">Veículos Rastreáveis</span> {selectedCase.veiculos || 'N/A'}</p>
-                      <p className="text-sm text-slate-300"><span className="text-slate-500 font-black text-[10px] uppercase block tracking-widest">Balística / Armas</span> {selectedCase.armas || 'N/A'}</p>
-                    </div>
-                  </div>
+                  <h3 className="text-xs font-black text-slate-500 uppercase mb-4 flex items-center gap-2 tracking-widest"><Camera size={16}/> Evidências Físicas</h3>
+                  <p className="text-sm text-slate-300 whitespace-pre-wrap bg-slate-950/50 p-4 rounded-xl border border-slate-800 leading-relaxed font-mono">{selectedCase.evidencias || 'Nenhuma prova material descrita.'}</p>
                 </div>
               </div>
+
+              {/* MÓDULO MULTIMÍDIA (GALERIA) */}
+              {selectedCase.anexos && selectedCase.anexos.length > 0 && (
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+                  <h3 className="text-xs font-black text-indigo-400 uppercase mb-6 flex items-center gap-2 tracking-widest border-b border-slate-800 pb-3">
+                    <ImageIcon size={18}/> Arquivos Multimídia (Evidências Visuais)
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {selectedCase.anexos.map((anexo) => (
+                      <div key={anexo.id} className="relative group bg-slate-950 border border-slate-800 rounded-xl overflow-hidden aspect-video flex items-center justify-center shadow-inner">
+                        {anexo.tipo === 'imagem' ? (
+                          <img src={anexo.url} alt="Evidência" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        ) : (
+                          <video src={anexo.url} controls className="w-full h-full object-cover bg-black" />
+                        )}
+                        <div className="absolute top-2 left-2 bg-slate-950/80 backdrop-blur-md px-2 py-1 rounded text-[9px] font-black uppercase text-slate-300 border border-slate-700 flex items-center gap-1">
+                          {anexo.tipo === 'imagem' ? <ImageIcon size={10}/> : <Video size={10}/>} {anexo.tipo}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Conclusão */}
               {selectedCase.conclusao && (
@@ -341,7 +406,7 @@ export default function Investigacoes() {
             </div>
 
             <div className="lg:col-span-4 space-y-6">
-              {/* Painel de Status */}
+              
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl text-center relative overflow-hidden">
                 <h3 className="text-xs font-black text-slate-500 uppercase mb-6 tracking-widest">Resolução do Inquérito</h3>
                 <div className="w-40 h-40 mx-auto rounded-full border-[10px] border-slate-800 flex items-center justify-center relative shadow-[inset_0_0_30px_rgba(0,0,0,0.5)] mb-6 bg-slate-950">
@@ -356,7 +421,25 @@ export default function Investigacoes() {
                 </div>
               </div>
 
-              {/* Linha do Tempo */}
+              {/* Informações Locais (Sidebar) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+                <div>
+                  <h3 className="text-[10px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1 tracking-widest"><MapPin size={12}/> Localização</h3>
+                  <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                    <p className="text-sm font-bold text-white mb-1">{selectedCase.local || 'Desconhecido'}</p>
+                    <p className="text-xs text-slate-400">{selectedCase.detalhesLocal}</p>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-[10px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1 tracking-widest"><Car size={12}/> Logística (Armas/Veículos)</h3>
+                  <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <p className="text-sm text-slate-300"><span className="text-slate-500 font-black text-[9px] uppercase block tracking-widest mb-0.5">Veículos Rastreáveis</span> {selectedCase.veiculos || 'N/A'}</p>
+                    <div className="h-px w-full bg-slate-800"></div>
+                    <p className="text-sm text-slate-300"><span className="text-slate-500 font-black text-[9px] uppercase block tracking-widest mb-0.5">Balística / Armas</span> {selectedCase.armas || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
                 <h3 className="text-xs font-black text-slate-500 uppercase mb-6 flex items-center gap-2 tracking-widest"><History size={16}/> Histórico Registrado</h3>
                 <div className="space-y-5">
@@ -398,17 +481,35 @@ export default function Investigacoes() {
               </div>
             </div>
 
-            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-emerald-500 border-b border-slate-800 pb-3 tracking-widest">
-              <CheckSquare size={18} /> B. Plano de Ação (Diligências)
+            {/* SEÇÃO NOVA: EQUIPE DESIGNADA */}
+            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-indigo-400 border-b border-slate-800 pb-3 tracking-widest">
+              <UserPlus size={18} /> B. Equipe de Investigação
             </h3>
             <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-6 mb-10">
-              <p className="text-xs text-slate-400 mb-4 font-mono">Adicione tarefas investigativas. A % do caso subirá automaticamente ao marcá-las como concluídas.</p>
-              
+              <p className="text-xs text-slate-400 mb-4 font-mono">Adicione os oficiais que estão colaborando neste caso.</p>
+              <div className="flex gap-3 mb-6">
+                <input type="text" className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none text-sm" placeholder="Nome do Oficial / Distintivo" value={oficialInput} onChange={(e) => setOficialInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addOficial())} />
+                <button type="button" onClick={addOficial} className="bg-indigo-900/30 text-indigo-400 border border-indigo-500/50 hover:bg-indigo-600 hover:text-white px-6 rounded-xl font-bold uppercase tracking-widest text-xs transition-all">Atribuir</button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {formData.oficiaisEnvolvidos.map((oficial, index) => (
+                  <span key={index} className="bg-slate-800 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold uppercase flex items-center gap-2 shadow-sm">
+                    <ShieldCheck size={14} className="text-indigo-400"/> {oficial}
+                    <button type="button" onClick={() => removerOficial(index)} className="text-slate-500 hover:text-red-500 ml-1"><XCircle size={14} className="lucide-x-circle" /></button>
+                  </span>
+                ))}
+                {formData.oficiaisEnvolvidos.length === 0 && <p className="text-slate-600 text-xs font-bold uppercase tracking-widest">Nenhum oficial designado.</p>}
+              </div>
+            </div>
+
+            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-emerald-500 border-b border-slate-800 pb-3 tracking-widest">
+              <CheckSquare size={18} /> C. Plano de Ação (Diligências)
+            </h3>
+            <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-6 mb-10">
               <div className="flex gap-3 mb-6">
                 <input type="text" className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none text-sm" placeholder="Ex: Solicitar quebra de sigilo bancário..." value={diligenciaInput} onChange={(e) => setDiligenciaInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addDiligencia())} />
                 <button type="button" onClick={addDiligencia} className="bg-emerald-900/30 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-600 hover:text-white px-6 rounded-xl font-bold uppercase tracking-widest text-xs transition-all">Adicionar</button>
               </div>
-
               <div className="space-y-2">
                 {formData.diligencias.map(dil => (
                   <div key={dil.id} className="flex items-center justify-between bg-slate-900 border border-slate-800 p-3 rounded-xl group">
@@ -421,22 +522,61 @@ export default function Investigacoes() {
                     <button type="button" onClick={() => removerDiligencia(dil.id)} className="text-slate-600 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16}/></button>
                   </div>
                 ))}
-                {formData.diligencias.length === 0 && <p className="text-center text-slate-600 text-xs py-4 font-bold uppercase tracking-widest">Nenhuma diligência criada.</p>}
               </div>
             </div>
 
-            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-indigo-400 border-b border-slate-800 pb-3 tracking-widest">
-              <Search size={18} /> C. Dados de Inteligência Coletados
+            {/* SEÇÃO NOVA: MULTIMÍDIA */}
+            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-fuchsia-500 border-b border-slate-800 pb-3 tracking-widest">
+              <ImageIcon size={18} /> D. Arquivos e Evidências Visuais
+            </h3>
+            <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-6 mb-10">
+              <p className="text-xs text-slate-400 mb-4 font-mono">Anexe links de imagens ou vídeos (Ex: Discord, Imgur, Youtube).</p>
+              <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                <select value={anexoTipo} onChange={(e) => setAnexoTipo(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-fuchsia-500 outline-none text-sm font-bold uppercase">
+                  <option value="imagem">Imagem</option>
+                  <option value="video">Vídeo</option>
+                </select>
+                <div className="relative flex-1">
+                  <Link size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input type="url" className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:border-fuchsia-500 outline-none text-sm" placeholder="Cole o URL (link) aqui..." value={anexoUrl} onChange={(e) => setAnexoUrl(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAnexo())} />
+                </div>
+                <button type="button" onClick={addAnexo} className="bg-fuchsia-900/30 text-fuchsia-400 border border-fuchsia-500/50 hover:bg-fuchsia-600 hover:text-white px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-xs transition-all">Anexar Arquivo</button>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {formData.anexos.map((anexo) => (
+                  <div key={anexo.id} className="relative bg-slate-900 border border-slate-700 rounded-xl overflow-hidden group aspect-video flex items-center justify-center">
+                    {anexo.tipo === 'imagem' ? (
+                       <img src={anexo.url} alt="Evidência" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                    ) : (
+                       <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center gap-2 text-slate-500 p-4 text-center">
+                         <Video size={32} className="text-slate-700" />
+                         <span className="text-[9px] uppercase tracking-widest truncate w-full px-2">{anexo.url}</span>
+                       </div>
+                    )}
+                    <button type="button" onClick={() => removerAnexo(anexo.id)} className="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-500">
+                      <Trash2 size={14} />
+                    </button>
+                    <div className="absolute bottom-2 left-2 bg-slate-900/90 backdrop-blur-sm border border-slate-700 px-2 py-1 rounded text-[9px] font-black uppercase text-slate-300">
+                      {anexo.tipo}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-blue-500 border-b border-slate-800 pb-3 tracking-widest">
+              <Search size={18} /> E. Dados Físicos e Rastreio
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
               <div className="group">
                 <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Local Primário</label>
-                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-indigo-500 outline-none transition-all"
+                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-blue-500 outline-none transition-all"
                   value={formData.local} onChange={e => setFormData({...formData, local: e.target.value})} placeholder="Ponto de interesse principal" />
               </div>
               <div className="group">
                 <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Detalhes do Local</label>
-                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-indigo-500 outline-none transition-all"
+                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-blue-500 outline-none transition-all"
                   value={formData.detalhesLocal} onChange={e => setFormData({...formData, detalhesLocal: e.target.value})} placeholder="Ex: Galpão amarelo fundo" />
               </div>
               <div className="group">
@@ -445,24 +585,24 @@ export default function Investigacoes() {
                   value={formData.suspeitos} onChange={e => setFormData({...formData, suspeitos: e.target.value})} placeholder="Liste suspeitos, ID, facções..." />
               </div>
               <div className="group">
-                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Evidências Materiais</label>
-                <textarea rows="3" className="w-full bg-emerald-950/10 border border-emerald-900/30 rounded-xl px-4 py-3.5 text-white focus:border-emerald-500 outline-none resize-none transition-all"
-                  value={formData.evidencias} onChange={e => setFormData({...formData, evidencias: e.target.value})} placeholder="Drogas, armas apreendidas, fotos..." />
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Evidências Materiais (Texto)</label>
+                <textarea rows="3" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-blue-500 outline-none resize-none transition-all"
+                  value={formData.evidencias} onChange={e => setFormData({...formData, evidencias: e.target.value})} placeholder="Descreva as provas físicas, drogas apreendidas..." />
               </div>
               <div className="group">
                 <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Veículos Rastreáveis</label>
-                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-indigo-500 outline-none transition-all"
+                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-blue-500 outline-none transition-all"
                   value={formData.veiculos} onChange={e => setFormData({...formData, veiculos: e.target.value})} placeholder="Placas, modelos" />
               </div>
               <div className="group">
                 <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Balística / Armas Usadas</label>
-                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-indigo-500 outline-none transition-all"
+                <input className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-blue-500 outline-none transition-all"
                   value={formData.armas} onChange={e => setFormData({...formData, armas: e.target.value})} placeholder="Tipos de calibre, cápsulas" />
               </div>
             </div>
 
             <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-yellow-500 border-b border-slate-800 pb-3 tracking-widest">
-              <Briefcase size={18} /> D. Gestão do Dossiê e Histórico
+              <Briefcase size={18} /> F. Gestão do Dossiê e Histórico
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
               <div className="group">
@@ -495,12 +635,11 @@ export default function Investigacoes() {
                 <p className="text-[9px] text-slate-500 mt-2 font-mono uppercase">Atenção: A aba "Diligências" substitui esta barra.</p>
               </div>
 
-              {/* Novo Evento na Timeline */}
               {isEditing && (
                 <div className="group md:col-span-3 bg-cyan-950/10 border border-cyan-900/30 p-5 rounded-2xl">
                   <label className="block text-[10px] font-black text-cyan-500 uppercase mb-2 tracking-widest flex items-center gap-2"><History size={14}/> Adicionar Registro à Linha do Tempo</label>
                   <input className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-cyan-500 outline-none transition-all text-sm font-mono"
-                    value={formData.novoEventoTimeline} onChange={e => setFormData({...formData, novoEventoTimeline: e.target.value})} placeholder="Ex: Suspeito interrogado hoje. Negou envolvimento..." />
+                    value={formData.novoEventoTimeline} onChange={e => setFormData({...formData, novoEventoTimeline: e.target.value})} placeholder="Ex: Câmeras de segurança do beco foram analisadas..." />
                 </div>
               )}
               
