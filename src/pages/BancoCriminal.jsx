@@ -4,17 +4,25 @@ import {
   Users, Briefcase, FileText, Camera, MapPin, 
   Crosshair, ChevronRight, FileWarning, DollarSign, 
   Clock, PlusCircle, Save, Fingerprint, Terminal, Activity, FileKey,
-  Trash2, Phone // <-- Adicionado ícone de Telefone
+  Trash2, Phone, Edit
 } from 'lucide-react';
+
+const ESTADO_INICIAL_FORMULARIO = {
+  nome: '', apelido: '', passaporte: '', nascimento: '', telefone: '', endereco: '', 
+  status: 'Limpo', periculosidade: 'Baixo',
+  veiculos: '', associacoes: '', historico: '', prisoes: '', multas: '', mandados: '', notas: ''
+};
 
 export default function BancoCriminal() {
   const [view, setView] = useState('busca'); 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mensagemBusca, setMensagemBusca] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
 
   const [fichasNoBanco, setFichasNoBanco] = useState([]);
   const [fichaAtual, setFichaAtual] = useState(null);
+  const [formData, setFormData] = useState(ESTADO_INICIAL_FORMULARIO);
 
   useEffect(() => {
     buscarFichas();
@@ -32,7 +40,6 @@ export default function BancoCriminal() {
     }
   };
 
-  // Função para APAGAR o registo
   const handleExcluirRegistro = async (id) => {
     if (!window.confirm("ATENÇÃO: Tem a certeza absoluta que deseja APAGAR este dossiê permanentemente? Esta ação não pode ser desfeita.")) {
       return;
@@ -44,7 +51,7 @@ export default function BancoCriminal() {
       });
 
       if (response.ok) {
-        await buscarFichas(); // Atualiza a lista
+        await buscarFichas();
         setView('busca');
         setFichaAtual(null);
         setMensagemBusca('DOSSIÊ APAGADO COM SUCESSO DO SISTEMA.');
@@ -56,13 +63,6 @@ export default function BancoCriminal() {
       alert("Falha de comunicação com o servidor.");
     }
   };
-
-  // Estado completo com TODAS as informações
-  const [formData, setFormData] = useState({
-    nome: '', apelido: '', passaporte: '', nascimento: '', telefone: '', endereco: '', 
-    status: 'Limpo', periculosidade: 'Baixo',
-    veiculos: '', associacoes: '', historico: '', prisoes: '', multas: '', mandados: '', notas: ''
-  });
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -91,26 +91,42 @@ export default function BancoCriminal() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleEditar = () => {
+    setFormData(fichaAtual);
+    setIsEditing(true);
+    setView('criar');
+  };
+
   const handleSubmitNovaFicha = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
+      const method = isEditing ? 'PUT' : 'POST';
       const response = await fetch('/api/banco-criminal', {
-        method: 'POST',
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 
       if (response.ok) {
-        setFormData({ 
-          nome: '', apelido: '', passaporte: '', nascimento: '', telefone: '', endereco: '', 
-          status: 'Limpo', periculosidade: 'Baixo', veiculos: '', associacoes: '', historico: '', prisoes: '', multas: '', mandados: '', notas: '' 
-        });
+        setFormData(ESTADO_INICIAL_FORMULARIO);
+        setIsEditing(false);
         await buscarFichas(); 
-        setView('busca');
-        setSearchQuery('');
-        setMensagemBusca('NOVO REGISTRO INSERIDO COM SUCESSO NO SISTEMA CENTRAL.');
+        
+        // Se estava a editar, volta para o perfil atualizado
+        if (isEditing) {
+          const dadosAtualizados = await response.json();
+          // Atualiza a ficha atual com os novos dados
+          const fichaBuscada = await fetch('/api/banco-criminal').then(res => res.json());
+          const atual = fichaBuscada.find(f => f._id === formData._id);
+          setFichaAtual(atual);
+          setView('perfil');
+        } else {
+          setView('busca');
+          setSearchQuery('');
+          setMensagemBusca('NOVO REGISTRO INSERIDO COM SUCESSO NO SISTEMA CENTRAL.');
+        }
       }
     } catch (error) {
       console.error("Erro:", error);
@@ -118,6 +134,12 @@ export default function BancoCriminal() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleNovaFichaClick = () => {
+    setFormData(ESTADO_INICIAL_FORMULARIO);
+    setIsEditing(false);
+    setView('criar');
   };
 
   return (
@@ -150,8 +172,8 @@ export default function BancoCriminal() {
                 className={`px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${view === 'busca' || view === 'perfil' ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
                 <Search size={16} /> Pesquisa
               </button>
-              <button onClick={() => setView('criar')}
-                className={`px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${view === 'criar' ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800'}`}>
+              <button onClick={handleNovaFichaClick}
+                className={`px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${view === 'criar' && !isEditing ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800'}`}>
                 <PlusCircle size={16} /> Novo Registro
               </button>
             </div>
@@ -290,7 +312,6 @@ export default function BancoCriminal() {
                         </div>
                      </div>
                      
-                     {/* Rótulos para o Nome Adicionados */}
                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Nome Registrado</p>
                      <h2 className="text-3xl font-black uppercase tracking-tight text-white mb-1">{fichaAtual.nome}</h2>
                      <p className="text-blue-400 font-bold tracking-widest text-sm mb-5 uppercase">VULGO: "{fichaAtual.apelido || 'NÃO REGISTRADO'}"</p>
@@ -301,7 +322,6 @@ export default function BancoCriminal() {
                      </div>
                    </div>
                    
-                   {/* DADOS BÁSICOS ORGANIZADOS EM CARTÕES */}
                    <div className="bg-slate-950/50 border-t border-slate-800 p-6">
                      <div className="grid grid-cols-2 gap-4">
                        
@@ -354,7 +374,6 @@ export default function BancoCriminal() {
                    </div>
                  </div>
 
-                 {/* Associações e Gangues */}
                  <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl">
                    <h3 className="font-bold uppercase text-xs mb-3 flex items-center gap-2 text-indigo-400 tracking-widest border-b border-slate-800 pb-2">
                      <Users size={14}/> Associações Conhecidas
@@ -362,20 +381,28 @@ export default function BancoCriminal() {
                    <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{fichaAtual.associacoes || 'Nenhuma facção ou gangue registrada.'}</p>
                  </div>
 
-                 {/* BOTÃO PARA APAGAR O DOSSIÊ NO PERFIL */}
-                 <button 
-                   onClick={() => handleExcluirRegistro(fichaAtual._id)}
-                   className="w-full flex items-center justify-center gap-2 bg-red-950/30 border border-red-900/50 text-red-500 hover:bg-red-600 hover:text-white py-4 rounded-3xl font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-[0_0_20px_rgba(220,38,38,0.4)]"
-                 >
-                   <Trash2 size={18} /> Apagar Dossiê do Sistema
-                 </button>
+                 {/* BOTOES DE AÇÃO NO PERFIL */}
+                 <div className="space-y-3">
+                   <button 
+                     onClick={handleEditar}
+                     className="w-full flex items-center justify-center gap-2 bg-yellow-950/30 border border-yellow-900/50 text-yellow-500 hover:bg-yellow-600 hover:text-white py-4 rounded-3xl font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-[0_0_20px_rgba(234,179,8,0.4)]"
+                   >
+                     <Edit size={18} /> Atualizar Dossiê
+                   </button>
+                   
+                   <button 
+                     onClick={() => handleExcluirRegistro(fichaAtual._id)}
+                     className="w-full flex items-center justify-center gap-2 bg-red-950/30 border border-red-900/50 text-red-500 hover:bg-red-600 hover:text-white py-4 rounded-3xl font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-[0_0_20px_rgba(220,38,38,0.4)]"
+                   >
+                     <Trash2 size={18} /> Apagar do Sistema
+                   </button>
+                 </div>
 
                </div>
 
                {/* Coluna Direita: Relatórios e Ficha */}
                <div className="lg:col-span-8 space-y-6">
                  
-                 {/* Mandados Ativos */}
                  {fichaAtual.mandados && fichaAtual.mandados.trim() !== '' && (
                     <div className="bg-red-950/20 border border-red-900/50 rounded-3xl p-6 border-l-4 border-l-red-600 shadow-lg relative overflow-hidden">
                       <div className="absolute right-0 top-0 opacity-10"><Crosshair size={150} className="-mt-10 text-red-500"/></div>
@@ -389,7 +416,6 @@ export default function BancoCriminal() {
                  )}
 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   {/* Histórico Criminal */}
                    <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl">
                      <h3 className="font-bold uppercase text-xs mb-4 flex items-center gap-2 text-slate-400 tracking-widest border-b border-slate-800 pb-3">
                        <FileText className="text-blue-500" size={16}/> Histórico de Infrações
@@ -401,7 +427,6 @@ export default function BancoCriminal() {
                      )}
                    </div>
 
-                   {/* Prisões */}
                    <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl">
                      <h3 className="font-bold uppercase text-xs mb-4 flex items-center gap-2 text-slate-400 tracking-widest border-b border-slate-800 pb-3">
                        <Clock className="text-orange-500" size={16}/> Histórico de Prisões
@@ -413,7 +438,6 @@ export default function BancoCriminal() {
                      )}
                    </div>
 
-                   {/* Multas */}
                    <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl">
                      <h3 className="font-bold uppercase text-xs mb-4 flex items-center gap-2 text-slate-400 tracking-widest border-b border-slate-800 pb-3">
                        <DollarSign className="text-emerald-500" size={16}/> Multas e Pendências
@@ -425,7 +449,6 @@ export default function BancoCriminal() {
                      )}
                    </div>
 
-                   {/* Veículos */}
                    <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl">
                      <h3 className="font-bold uppercase text-xs mb-4 flex items-center gap-2 text-slate-400 tracking-widest border-b border-slate-800 pb-3">
                        <Car className="text-purple-500" size={16}/> Veículos Registrados
@@ -438,7 +461,6 @@ export default function BancoCriminal() {
                    </div>
                  </div>
 
-                 {/* Alerta de Notas */}
                  {fichaAtual.notas && (
                    <div className="bg-gradient-to-r from-yellow-900/20 to-slate-900/80 border border-yellow-700/30 rounded-3xl p-6 relative overflow-hidden backdrop-blur-md">
                      <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-5"><FileWarning size={150} /></div>
@@ -455,60 +477,66 @@ export default function BancoCriminal() {
           </div>
         )}
 
-        {/* --- ABA 3: CRIAR NOVO REGISTRO (FORMULÁRIO COMPLETO) --- */}
+        {/* --- ABA 3: CRIAR NOVO REGISTRO / EDITAR (FORMULÁRIO COMPLETO) --- */}
         {view === 'criar' && (
           <div className="animate-in fade-in zoom-in-95 duration-500 max-w-5xl mx-auto">
             <div className="bg-slate-900/80 border border-slate-700/50 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl">
               
-              <div className="bg-gradient-to-r from-emerald-900/40 to-slate-900 border-b border-emerald-900/50 p-8 relative overflow-hidden">
-                <div className="absolute right-0 top-0 opacity-10"><Terminal size={200} className="-mt-10 -mr-10 text-emerald-500"/></div>
+              <div className={`bg-gradient-to-r ${isEditing ? 'from-yellow-900/40' : 'from-emerald-900/40'} to-slate-900 border-b ${isEditing ? 'border-yellow-900/50' : 'border-emerald-900/50'} p-8 relative overflow-hidden`}>
+                <div className="absolute right-0 top-0 opacity-10">
+                  {isEditing ? <Edit size={200} className="-mt-10 -mr-10 text-yellow-500"/> : <Terminal size={200} className="-mt-10 -mr-10 text-emerald-500"/>}
+                </div>
                 <h2 className="text-3xl font-black text-white uppercase flex items-center gap-4 relative z-10 tracking-tight">
-                  <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400"><PlusCircle size={28} /></div>
-                  Criação de Dossiê Criminal Completo
+                  <div className={`p-2 rounded-lg ${isEditing ? 'bg-yellow-500/20 text-yellow-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                    {isEditing ? <Edit size={28} /> : <PlusCircle size={28} />}
+                  </div>
+                  {isEditing ? 'Atualização de Dossiê Criminal' : 'Criação de Dossiê Criminal Completo'}
                 </h2>
-                <p className="text-slate-400 mt-2 text-sm font-mono relative z-10">Preencha todos os campos conhecidos sobre o indivíduo.</p>
+                <p className="text-slate-400 mt-2 text-sm font-mono relative z-10">
+                  {isEditing ? 'Atualize as informações do indivíduo no sistema.' : 'Preencha todos os campos conhecidos sobre o indivíduo.'}
+                </p>
               </div>
 
               <form onSubmit={handleSubmitNovaFicha} className="p-8 space-y-10">
                 
                 {/* 1. Dados Pessoais */}
                 <div>
-                  <h3 className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-6 flex items-center gap-2"><User size={14}/> Identificação do Indivíduo</h3>
+                  <h3 className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}><User size={14}/> Identificação do Indivíduo</h3>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="group md:col-span-2">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Nome Completo *</label>
-                      <input type="text" name="nome" value={formData.nome} onChange={handleInputChange} required className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all" />
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Nome Completo *</label>
+                      <input type="text" name="nome" value={formData.nome} onChange={handleInputChange} required className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white outline-none transition-all ${isEditing ? 'focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50' : 'focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50'}`} />
                     </div>
                     <div className="group md:col-span-1">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Apelido (Vulgo)</label>
-                      <input type="text" name="apelido" value={formData.apelido} onChange={handleInputChange} className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all" />
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Apelido (Vulgo)</label>
+                      <input type="text" name="apelido" value={formData.apelido} onChange={handleInputChange} className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white outline-none transition-all ${isEditing ? 'focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50' : 'focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50'}`} />
                     </div>
                     <div className="group md:col-span-1">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Passaporte (ID) *</label>
-                      <input type="text" name="passaporte" value={formData.passaporte} onChange={handleInputChange} required className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all" />
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Passaporte (ID) *</label>
+                      <input type="text" name="passaporte" value={formData.passaporte} onChange={handleInputChange} required className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white font-mono outline-none transition-all ${isEditing ? 'focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50' : 'focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50'}`} />
                     </div>
                     <div className="group md:col-span-1">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Data de Nascimento</label>
-                      <input type="text" name="nascimento" value={formData.nascimento} onChange={handleInputChange} className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all" placeholder="DD/MM/AAAA" />
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Data de Nascimento</label>
+                      <input type="text" name="nascimento" value={formData.nascimento} onChange={handleInputChange} className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white font-mono outline-none transition-all ${isEditing ? 'focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50' : 'focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50'}`} placeholder="DD/MM/AAAA" />
                     </div>
                     <div className="group md:col-span-1">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Telefone</label>
-                      <input type="text" name="telefone" value={formData.telefone} onChange={handleInputChange} className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all" />
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Telefone</label>
+                      <input type="text" name="telefone" value={formData.telefone} onChange={handleInputChange} className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white font-mono outline-none transition-all ${isEditing ? 'focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50' : 'focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50'}`} />
                     </div>
                     <div className="group md:col-span-2">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Endereço / Residência</label>
-                      <input type="text" name="endereco" value={formData.endereco} onChange={handleInputChange} className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all" />
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Endereço / Residência</label>
+                      <input type="text" name="endereco" value={formData.endereco} onChange={handleInputChange} className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white outline-none transition-all ${isEditing ? 'focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50' : 'focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50'}`} />
                     </div>
                   </div>
                 </div>
 
                 {/* 2. Status e Avaliação */}
                 <div>
-                  <h3 className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-6 flex items-center gap-2"><ShieldAlert size={14}/> Avaliação Tática e Status</h3>
+                  <h3 className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}><ShieldAlert size={14}/> Avaliação Tática e Status</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Status Atual</label>
-                      <select name="status" value={formData.status} onChange={handleInputChange} className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-emerald-500 outline-none transition-all appearance-none cursor-pointer">
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Status Atual</label>
+                      <select name="status" value={formData.status} onChange={handleInputChange} className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white outline-none transition-all appearance-none cursor-pointer ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`}>
                         <option value="Limpo">Limpo (Cidadão sem pendências)</option>
                         <option value="Procurado">Procurado (Mandado Ativo / Fuga)</option>
                         <option value="Preso">Preso (Cumprindo pena no momento)</option>
@@ -516,8 +544,8 @@ export default function BancoCriminal() {
                       </select>
                     </div>
                     <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Nível de Ameaça / Periculosidade</label>
-                      <select name="periculosidade" value={formData.periculosidade} onChange={handleInputChange} className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-emerald-500 outline-none transition-all appearance-none cursor-pointer">
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Nível de Ameaça / Periculosidade</label>
+                      <select name="periculosidade" value={formData.periculosidade} onChange={handleInputChange} className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white outline-none transition-all appearance-none cursor-pointer ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`}>
                         <option value="Baixo">Verde - Risco Baixo (Cidadão comum)</option>
                         <option value="Médio">Amarelo - Risco Médio (Pequenos delitos)</option>
                         <option value="Alto">Laranja - Risco Alto (Tráfico, gangues armadas)</option>
@@ -529,34 +557,34 @@ export default function BancoCriminal() {
 
                 {/* 3. Propriedades e Associações */}
                 <div>
-                  <h3 className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-6 flex items-center gap-2"><Car size={14}/> Propriedades e Ligações</h3>
+                  <h3 className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}><Car size={14}/> Propriedades e Ligações</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Veículos no Nome (Modelo - Cor - Placa)</label>
-                      <textarea name="veiculos" value={formData.veiculos} onChange={handleInputChange} rows="3" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:border-emerald-500 outline-none transition-all resize-none" placeholder="Ex: Sultan Preto - ABC-1234"></textarea>
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Veículos no Nome (Modelo - Cor - Placa)</label>
+                      <textarea name="veiculos" value={formData.veiculos} onChange={handleInputChange} rows="3" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} placeholder="Ex: Sultan Preto - ABC-1234"></textarea>
                     </div>
                     <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Associações (Gangues, Facções, Cúmplices)</label>
-                      <textarea name="associacoes" value={formData.associacoes} onChange={handleInputChange} rows="3" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:border-emerald-500 outline-none transition-all resize-none" placeholder="Ex: Membro dos Ballas. Cúmplice: João (ID 123)"></textarea>
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Associações (Gangues, Facções, Cúmplices)</label>
+                      <textarea name="associacoes" value={formData.associacoes} onChange={handleInputChange} rows="3" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} placeholder="Ex: Membro dos Ballas. Cúmplice: João (ID 123)"></textarea>
                     </div>
                   </div>
                 </div>
 
                 {/* 4. Histórico Criminal Expandido */}
                 <div>
-                  <h3 className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-6 flex items-center gap-2"><FileText size={14}/> Histórico Policial Completo</h3>
+                  <h3 className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}><FileText size={14}/> Histórico Policial Completo</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Infrações e Crimes Cometidos</label>
-                      <textarea name="historico" value={formData.historico} onChange={handleInputChange} rows="4" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:border-emerald-500 outline-none transition-all resize-none" placeholder="Liste os crimes que ele já cometeu."></textarea>
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Infrações e Crimes Cometidos</label>
+                      <textarea name="historico" value={formData.historico} onChange={handleInputChange} rows="4" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} placeholder="Liste os crimes que ele já cometeu."></textarea>
                     </div>
                     <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Registro de Prisões (Motivo e Meses)</label>
-                      <textarea name="prisoes" value={formData.prisoes} onChange={handleInputChange} rows="4" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:border-emerald-500 outline-none transition-all resize-none" placeholder="Ex: Preso dia 01/01 por Roubo Armado (40 meses)"></textarea>
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Registro de Prisões (Motivo e Meses)</label>
+                      <textarea name="prisoes" value={formData.prisoes} onChange={handleInputChange} rows="4" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} placeholder="Ex: Preso dia 01/01 por Roubo Armado (40 meses)"></textarea>
                     </div>
                     <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Multas (Pagas / Pendentes)</label>
-                      <textarea name="multas" value={formData.multas} onChange={handleInputChange} rows="4" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:border-emerald-500 outline-none transition-all resize-none" placeholder="Ex: $1200 - Direção Perigosa (Pendente)"></textarea>
+                      <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Multas (Pagas / Pendentes)</label>
+                      <textarea name="multas" value={formData.multas} onChange={handleInputChange} rows="4" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} placeholder="Ex: $1200 - Direção Perigosa (Pendente)"></textarea>
                     </div>
                     <div className="group">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-red-400 transition-colors">MANDADOS ATIVOS</label>
@@ -568,18 +596,21 @@ export default function BancoCriminal() {
                 {/* 5. Observações do Oficial */}
                 <div>
                   <div className="group">
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-emerald-400 transition-colors">Anotações Confidenciais do Oficial</label>
-                    <textarea name="notas" value={formData.notas} onChange={handleInputChange} rows="3" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-emerald-500 outline-none transition-all resize-none" placeholder="Tatuagens, modus operandi, se costuma andar armado..."></textarea>
+                    <label className={`block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 transition-colors ${isEditing ? 'group-focus-within:text-yellow-400' : 'group-focus-within:text-emerald-400'}`}>Anotações Confidenciais do Oficial</label>
+                    <textarea name="notas" value={formData.notas} onChange={handleInputChange} rows="3" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-sm outline-none transition-all resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} placeholder="Tatuagens, modus operandi, se costuma andar armado..."></textarea>
                   </div>
                 </div>
 
                 {/* Botões */}
                 <div className="flex flex-col sm:flex-row justify-end gap-4 pt-8 border-t border-slate-800/80">
-                  <button type="button" onClick={() => setView('busca')} className="px-8 py-3.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors uppercase tracking-widest text-sm">
+                  <button type="button" onClick={() => {
+                    setView(isEditing ? 'perfil' : 'busca');
+                    if (!isEditing) setFormData(ESTADO_INICIAL_FORMULARIO);
+                  }} className="px-8 py-3.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors uppercase tracking-widest text-sm">
                     Cancelar
                   </button>
-                  <button type="submit" disabled={isSubmitting} className="flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-white px-10 py-3.5 rounded-xl font-black uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none">
-                    <Save size={18} /> {isSubmitting ? 'PROCESSANDO...' : 'SALVAR DOSSIÊ COMPLETO'}
+                  <button type="submit" disabled={isSubmitting} className={`flex items-center justify-center gap-3 text-white px-10 py-3.5 rounded-xl font-black uppercase tracking-widest transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none ${isEditing ? 'bg-yellow-600 hover:bg-yellow-500 hover:shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'bg-emerald-600 hover:bg-emerald-500 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)]'}`}>
+                    <Save size={18} /> {isSubmitting ? 'PROCESSANDO...' : (isEditing ? 'SALVAR ALTERAÇÕES' : 'SALVAR DOSSIÊ COMPLETO')}
                   </button>
                 </div>
               </form>

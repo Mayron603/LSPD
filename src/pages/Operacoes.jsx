@@ -3,8 +3,17 @@ import {
   Crosshair, Map, Plus, Users, Clock, XCircle, 
   Trash2, Shield, Terminal, Activity, Radar, Target, 
   ChevronRight, FileText, Brain, AlertTriangle, 
-  CheckSquare, FileImage, ShieldAlert
+  CheckSquare, FileImage, ShieldAlert, Edit
 } from 'lucide-react';
+
+const ESTADO_INICIAL_FORMULARIO = {
+  nome: '', codigo: '', tipo: 'Mandado de Prisão', dataHorario: '',
+  comandante: JSON.parse(localStorage.getItem('usuario') || '{}').nome || '',
+  local: '', status: 'Planejada', risco: 'Alto',
+  objetivoPrincipal: '', objetivosSecundarios: '',
+  contexto: '', suspeitos: '', unidades: '',
+  planoTatico: '', evidencias: '', roe: '', resultados: ''
+};
 
 export default function Operacoes() {
   const [showModal, setShowModal] = useState(false);
@@ -12,16 +21,9 @@ export default function Operacoes() {
   const [loading, setLoading] = useState(true);
   const [operacaoSelecionada, setOperacaoSelecionada] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // Estado para saber se estamos a editar
   
-  // Estado completo para o super formulário
-  const [formData, setFormData] = useState({
-    nome: '', codigo: '', tipo: 'Mandado de Prisão', dataHorario: '',
-    comandante: JSON.parse(localStorage.getItem('usuario') || '{}').nome || '',
-    local: '', status: 'Planejada', risco: 'Alto',
-    objetivoPrincipal: '', objetivosSecundarios: '',
-    contexto: '', suspeitos: '', unidades: '',
-    planoTatico: '', evidencias: '', roe: '', resultados: ''
-  });
+  const [formData, setFormData] = useState(ESTADO_INICIAL_FORMULARIO);
 
   const fetchOperacoes = async () => {
     try {
@@ -40,22 +42,26 @@ export default function Operacoes() {
   const handleSalvar = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    
+    // Define o método dependendo se está a editar ou a criar
+    const method = isEditing ? 'PUT' : 'POST';
+    
     const res = await fetch('/api/operacoes', {
-      method: 'POST',
+      method: method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData),
     });
+    
     if (res.ok) {
       setShowModal(false);
-      // Resetar formulário
-      setFormData({
-        nome: '', codigo: '', tipo: 'Mandado de Prisão', dataHorario: '',
-        comandante: JSON.parse(localStorage.getItem('usuario') || '{}').nome || '',
-        local: '', status: 'Planejada', risco: 'Alto',
-        objetivoPrincipal: '', objetivosSecundarios: '', contexto: '', 
-        suspeitos: '', unidades: '', planoTatico: '', evidencias: '', roe: '', resultados: ''
-      });
+      setIsEditing(false);
+      setFormData(ESTADO_INICIAL_FORMULARIO);
       fetchOperacoes();
+      
+      // Se estava a ver o perfil, atualiza-o logo a seguir a editar
+      if (operacaoSelecionada) {
+          setOperacaoSelecionada(null); // Fecha a vista antiga para evitar inconsistências
+      }
     }
     setIsSubmitting(false);
   };
@@ -66,6 +72,19 @@ export default function Operacoes() {
       fetchOperacoes();
       if (operacaoSelecionada && operacaoSelecionada._id === id) setOperacaoSelecionada(null);
     }
+  };
+
+  const handleNovaOperacao = () => {
+    setFormData(ESTADO_INICIAL_FORMULARIO);
+    setIsEditing(false);
+    setShowModal(true);
+  };
+
+  const handleEditarOperacao = () => {
+    setFormData(operacaoSelecionada);
+    setIsEditing(true);
+    setOperacaoSelecionada(null);
+    setShowModal(true);
   };
 
   const getStatusColor = (status) => {
@@ -111,7 +130,7 @@ export default function Operacoes() {
             </h1>
           </div>
           
-          <button onClick={() => setShowModal(true)} className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 px-8 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] hover:-translate-y-0.5 uppercase tracking-widest text-sm">
+          <button onClick={handleNovaOperacao} className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 px-8 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] hover:-translate-y-0.5 uppercase tracking-widest text-sm">
             <Plus size={18} /> Agendar Missão
           </button>
         </div>
@@ -140,7 +159,6 @@ export default function Operacoes() {
                       </button>
                     </div>
                     
-                    {/* RÓTULOS ADICIONADOS AQUI */}
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
                       <Radar size={10} /> Código da Operação
                     </p>
@@ -203,17 +221,22 @@ export default function Operacoes() {
                       <span className={`px-3 py-1 rounded-lg text-[10px] font-black border uppercase tracking-widest inline-flex items-center gap-1.5 ${getStatusColor(operacaoSelecionada.status)}`}>
                         <Activity size={12} /> STATUS: {operacaoSelecionada.status}
                       </span>
-                      {/* RÓTULO DO CÓDIGO AQUI */}
                       <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-lg text-[10px] font-mono uppercase tracking-widest border border-slate-700 flex items-center gap-1">
                         <Radar size={12}/> CÓDIGO: {operacaoSelecionada.codigo || 'OP-XXX'}
                       </span>
                     </div>
-                    <button onClick={() => setOperacaoSelecionada(null)} className="text-slate-500 hover:text-white bg-slate-800/50 hover:bg-slate-800 p-2 rounded-full transition-colors self-end md:self-auto">
-                      <XCircle size={28} />
-                    </button>
+                    
+                    {/* Botoes Editar e Fechar */}
+                    <div className="flex gap-2 self-end md:self-auto">
+                      <button onClick={handleEditarOperacao} className="text-yellow-500 hover:text-white bg-yellow-900/20 border border-yellow-500/30 hover:bg-yellow-600 px-4 py-2 rounded-lg transition-colors font-bold uppercase text-xs flex items-center gap-2">
+                        <Edit size={16} /> Editar
+                      </button>
+                      <button onClick={() => setOperacaoSelecionada(null)} className="text-slate-500 hover:text-white bg-slate-800/50 hover:bg-slate-800 p-2 rounded-lg transition-colors">
+                        <XCircle size={24} />
+                      </button>
+                    </div>
                   </div>
                   
-                  {/* RÓTULO DO NOME AQUI */}
                   <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1 flex items-center gap-1">
                     <Target size={12} /> Nome da Operação
                   </p>
@@ -335,22 +358,28 @@ export default function Operacoes() {
           </div>
         )}
 
-        {/* --- MODAL DE CRIAÇÃO (SUPER FORMULÁRIO) --- */}
+        {/* --- MODAL DE CRIAÇÃO / EDIÇÃO (SUPER FORMULÁRIO) --- */}
         {showModal && (
           <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
             <div className="bg-slate-900 border border-slate-700/50 w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden relative flex flex-col max-h-[95vh]">
               
-              <div className="bg-gradient-to-r from-emerald-900/40 to-slate-900 p-6 md:p-8 border-b border-emerald-900/50 relative shrink-0">
-                <div className="absolute right-0 top-0 opacity-10"><Crosshair size={200} className="-mt-16 -mr-10 text-emerald-500"/></div>
+              <div className={`bg-gradient-to-r ${isEditing ? 'from-yellow-900/40' : 'from-emerald-900/40'} to-slate-900 p-6 md:p-8 border-b ${isEditing ? 'border-yellow-900/50' : 'border-emerald-900/50'} relative shrink-0`}>
+                <div className="absolute right-0 top-0 opacity-10">
+                  {isEditing ? <Edit size={200} className="-mt-16 -mr-10 text-yellow-500"/> : <Crosshair size={200} className="-mt-16 -mr-10 text-emerald-500"/>}
+                </div>
                 <div className="relative z-10 flex justify-between items-center">
                   <div>
                     <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
-                        <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400"><Plus size={24} /></div>
-                        Agendar Operação
+                        <div className={`p-2 rounded-lg ${isEditing ? 'bg-yellow-500/20 text-yellow-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                          {isEditing ? <Edit size={24} /> : <Plus size={24} />}
+                        </div>
+                        {isEditing ? 'EDITAR OPERAÇÃO' : 'Agendar Operação'}
                     </h2>
-                    <p className="text-slate-400 mt-2 text-sm font-mono tracking-wider">PREENCHA O DOSSIÊ TÁTICO COMPLETO</p>
+                    <p className="text-slate-400 mt-2 text-sm font-mono tracking-wider">
+                      {isEditing ? 'ATUALIZE O DOSSIÊ TÁTICO' : 'PREENCHA O DOSSIÊ TÁTICO COMPLETO'}
+                    </p>
                   </div>
-                  <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-white bg-slate-800/50 hover:bg-slate-800 p-2 rounded-full transition-colors">
+                  <button onClick={() => { setShowModal(false); setIsEditing(false); setFormData(ESTADO_INICIAL_FORMULARIO); }} className="text-slate-500 hover:text-white bg-slate-800/50 hover:bg-slate-800 p-2 rounded-full transition-colors">
                       <XCircle size={28} />
                   </button>
                 </div>
@@ -360,33 +389,33 @@ export default function Operacoes() {
                 
                 {/* Secção 1 */}
                 <div>
-                  <h3 className="text-sm font-black text-emerald-500 uppercase tracking-widest border-b border-slate-800 pb-2 mb-6">1. Dados Operacionais</h3>
+                  <h3 className={`text-sm font-black uppercase tracking-widest border-b border-slate-800 pb-2 mb-6 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}>1. Dados Operacionais</h3>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="group md:col-span-2">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Nome da Operação *</label>
-                      <input required type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition-all" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} placeholder="Ex: Operação Hydra" />
+                      <input required type="text" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none transition-all ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} placeholder="Ex: Operação Hydra" />
                     </div>
                     <div className="group md:col-span-1">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Código</label>
-                      <input type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition-all font-mono" value={formData.codigo} onChange={e => setFormData({...formData, codigo: e.target.value})} placeholder="OP-021" />
+                      <input type="text" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none transition-all font-mono ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.codigo} onChange={e => setFormData({...formData, codigo: e.target.value})} placeholder="OP-021" />
                     </div>
                     <div className="group md:col-span-1">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Data e Hora</label>
-                      <input type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition-all font-mono" value={formData.dataHorario} onChange={e => setFormData({...formData, dataHorario: e.target.value})} placeholder="07/03/2026 - 21:00" />
+                      <input type="text" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none transition-all font-mono ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.dataHorario} onChange={e => setFormData({...formData, dataHorario: e.target.value})} placeholder="07/03/2026 - 21:00" />
                     </div>
                     <div className="group md:col-span-2">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Localização / Região Alvo *</label>
-                      <input required type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition-all" value={formData.local} onChange={e => setFormData({...formData, local: e.target.value})} placeholder="Ex: Galpão abandonado - Grove Street" />
+                      <input required type="text" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none transition-all ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.local} onChange={e => setFormData({...formData, local: e.target.value})} placeholder="Ex: Galpão abandonado - Grove Street" />
                     </div>
                     <div className="group md:col-span-1">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Status Inicial</label>
-                      <select className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                      <select className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
                         <option>Planejada</option><option>Em andamento</option><option>Concluída</option>
                       </select>
                     </div>
                     <div className="group md:col-span-1">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Nível de Risco</label>
-                      <select className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none" value={formData.risco} onChange={e => setFormData({...formData, risco: e.target.value})}>
+                      <select className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.risco} onChange={e => setFormData({...formData, risco: e.target.value})}>
                         <option>Baixo</option><option>Médio</option><option>Alto</option><option>Extremo</option>
                       </select>
                     </div>
@@ -395,30 +424,30 @@ export default function Operacoes() {
 
                 {/* Secção 2 */}
                 <div>
-                  <h3 className="text-sm font-black text-emerald-500 uppercase tracking-widest border-b border-slate-800 pb-2 mb-6">2. Objetivos e Regras (ROE)</h3>
+                  <h3 className={`text-sm font-black uppercase tracking-widest border-b border-slate-800 pb-2 mb-6 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}>2. Objetivos e Regras (ROE)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="group">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Objetivo Principal *</label>
-                      <textarea required rows="2" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none resize-none" value={formData.objetivoPrincipal} onChange={e => setFormData({...formData, objetivoPrincipal: e.target.value})} placeholder="Ex: Cumprir mandado de prisão contra Marcus Reed."></textarea>
+                      <textarea required rows="2" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.objetivoPrincipal} onChange={e => setFormData({...formData, objetivoPrincipal: e.target.value})} placeholder="Ex: Cumprir mandado de prisão contra Marcus Reed."></textarea>
                     </div>
                     <div className="group">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Regras de Engajamento (R.O.E)</label>
-                      <textarea rows="2" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none resize-none" value={formData.roe} onChange={e => setFormData({...formData, roe: e.target.value})} placeholder="Ex: Uso de força letal apenas se os suspeitos dispararem primeiro."></textarea>
+                      <textarea rows="2" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.roe} onChange={e => setFormData({...formData, roe: e.target.value})} placeholder="Ex: Uso de força letal apenas se os suspeitos dispararem primeiro."></textarea>
                     </div>
                     <div className="group md:col-span-2">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Objetivos Secundários</label>
-                      <textarea rows="2" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none resize-none" value={formData.objetivosSecundarios} onChange={e => setFormData({...formData, objetivosSecundarios: e.target.value})} placeholder="Ex: Apreender armas ilegais, recolher evidências..."></textarea>
+                      <textarea rows="2" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.objetivosSecundarios} onChange={e => setFormData({...formData, objetivosSecundarios: e.target.value})} placeholder="Ex: Apreender armas ilegais, recolher evidências..."></textarea>
                     </div>
                   </div>
                 </div>
 
                 {/* Secção 3 */}
                 <div>
-                  <h3 className="text-sm font-black text-emerald-500 uppercase tracking-widest border-b border-slate-800 pb-2 mb-6">3. Inteligência e Alvos</h3>
+                  <h3 className={`text-sm font-black uppercase tracking-widest border-b border-slate-800 pb-2 mb-6 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}>3. Inteligência e Alvos</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="group">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Contexto / Inteligência</label>
-                      <textarea rows="3" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none resize-none" value={formData.contexto} onChange={e => setFormData({...formData, contexto: e.target.value})} placeholder="Informações obtidas antes da operação. Atividades suspeitas..."></textarea>
+                      <textarea rows="3" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.contexto} onChange={e => setFormData({...formData, contexto: e.target.value})} placeholder="Informações obtidas antes da operação. Atividades suspeitas..."></textarea>
                     </div>
                     <div className="group">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Suspeitos Principais</label>
@@ -426,14 +455,14 @@ export default function Operacoes() {
                     </div>
                     <div className="group md:col-span-2">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Evidências Coletadas (Provas prévias)</label>
-                      <input type="text" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition-all" value={formData.evidencias} onChange={e => setFormData({...formData, evidencias: e.target.value})} placeholder="Ex: Fotos do galpão, testemunhas, relatório do FIB." />
+                      <input type="text" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none transition-all ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.evidencias} onChange={e => setFormData({...formData, evidencias: e.target.value})} placeholder="Ex: Fotos do galpão, testemunhas, relatório do FIB." />
                     </div>
                   </div>
                 </div>
 
                 {/* Secção 4 */}
                 <div>
-                  <h3 className="text-sm font-black text-emerald-500 uppercase tracking-widest border-b border-slate-800 pb-2 mb-6">4. Tática e Mobilização</h3>
+                  <h3 className={`text-sm font-black uppercase tracking-widest border-b border-slate-800 pb-2 mb-6 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}>4. Tática e Mobilização</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="group">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Unidades Envolvidas</label>
@@ -441,18 +470,29 @@ export default function Operacoes() {
                     </div>
                     <div className="group">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Plano Tático</label>
-                      <textarea rows="4" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none resize-none font-mono" value={formData.planoTatico} onChange={e => setFormData({...formData, planoTatico: e.target.value})} placeholder="Estratégia, rotas de entrada, perímetro, contenção..."></textarea>
+                      <textarea rows="4" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none resize-none font-mono ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.planoTatico} onChange={e => setFormData({...formData, planoTatico: e.target.value})} placeholder="Estratégia, rotas de entrada, perímetro, contenção..."></textarea>
                     </div>
                   </div>
                 </div>
+                
+                {/* Resultados Pós-Ação (Só aparece se estiver a editar) */}
+                {isEditing && (
+                  <div>
+                    <h3 className="text-sm font-black text-blue-500 uppercase tracking-widest border-b border-slate-800 pb-2 mb-6">5. Relatório Pós-Ação</h3>
+                    <div className="group">
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Resultados Obtidos</label>
+                      <textarea rows="4" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none resize-none font-mono" value={formData.resultados} onChange={e => setFormData({...formData, resultados: e.target.value})} placeholder="Relate o desfecho da operação..."></textarea>
+                    </div>
+                  </div>
+                )}
 
                 {/* Botões do Formulário */}
                 <div className="pt-6 border-t border-slate-800/80 flex justify-end gap-4 pb-10 shrink-0">
-                  <button type="button" onClick={() => setShowModal(false)} className="px-8 py-3.5 rounded-xl font-bold text-slate-400 hover:bg-slate-800 transition-all uppercase tracking-widest text-xs">
+                  <button type="button" onClick={() => { setShowModal(false); setIsEditing(false); setFormData(ESTADO_INICIAL_FORMULARIO); }} className="px-8 py-3.5 rounded-xl font-bold text-slate-400 hover:bg-slate-800 transition-all uppercase tracking-widest text-xs">
                     Cancelar
                   </button>
-                  <button type="submit" disabled={isSubmitting} className="flex items-center justify-center gap-2 bg-emerald-600 text-white font-black px-10 py-3.5 rounded-xl hover:bg-emerald-500 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-50 uppercase tracking-widest text-xs">
-                    {isSubmitting ? 'SALVANDO...' : 'REGISTRAR OPERAÇÃO'}
+                  <button type="submit" disabled={isSubmitting} className={`flex items-center justify-center gap-2 text-white font-black px-10 py-3.5 rounded-xl transition-all disabled:opacity-50 uppercase tracking-widest text-xs ${isEditing ? 'bg-yellow-600 hover:bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]'}`}>
+                    {isSubmitting ? 'SALVANDO...' : (isEditing ? 'SALVAR ALTERAÇÕES' : 'REGISTRAR OPERAÇÃO')}
                   </button>
                 </div>
 
