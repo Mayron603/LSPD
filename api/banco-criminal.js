@@ -1,11 +1,11 @@
 import clientPromise from './_lib/mongodb.js';
 import { ObjectId } from 'mongodb';
-import { verificarToken } from './_lib/auth.js'; // <-- IMPORTAÇÃO DO GUARDIÃO
+import { verificarToken } from './_lib/auth.js';
 
 export default async function handler(req, res) {
   // BLINDAGEM MÁXIMA: Verifica o crachá digital antes de qualquer coisa
   const usuarioLogado = verificarToken(req, res);
-  if (!usuarioLogado) return; // Se for nulo, o guardião já enviou a mensagem de erro (401) e aborta
+  if (!usuarioLogado) return;
 
   try {
     const client = await clientPromise;
@@ -23,18 +23,30 @@ export default async function handler(req, res) {
       const novaFicha = req.body;
       const fichaParaInserir = {
         ...novaFicha,
-        dataRegistro: new Date().toISOString()
+        dataRegistro: new Date().toISOString(),
+        // INJEÇÃO DA AUDITORIA: Salva quem criou
+        criadoPor: usuarioLogado.nome || 'Oficial Desconhecido',
+        criadoPorId: usuarioLogado.id || null
       };
+      
       const result = await collection.insertOne(fichaParaInserir);
       return res.status(201).json({ success: true, message: 'Ficha criada com sucesso', id: result.insertedId });
     }
 
     // ATUALIZAR (EDITAR)
     if (req.method === 'PUT') {
-      const { _id, ...updateData } = req.body; // Remove o ID do corpo para o Mongo não dar erro
+      const { _id, ...updateData } = req.body; 
+      
       await collection.updateOne(
         { _id: new ObjectId(_id) },
-        { $set: updateData }
+        { 
+          $set: { 
+            ...updateData,
+            // INJEÇÃO DA AUDITORIA: Salva quem foi o último a editar
+            atualizadoPor: usuarioLogado.nome || 'Oficial Desconhecido',
+            dataAtualizacao: new Date().toISOString()
+          } 
+        }
       );
       return res.status(200).json({ message: 'Ficha atualizada com sucesso' });
     }
@@ -42,6 +54,8 @@ export default async function handler(req, res) {
     // APAGAR (DELETAR)
     if (req.method === 'DELETE') {
       const { id } = req.query;
+      // Dica RP: Num sistema mais avançado, poderíamos fazer um "Soft Delete" (marcar como apagado)
+      // para que os deuses (Admin) vejam quem tentou apagar. Mas vamos manter o original por agora.
       await collection.deleteOne({ _id: new ObjectId(id) });
       return res.status(200).json({ message: 'Removido com sucesso' });
     }

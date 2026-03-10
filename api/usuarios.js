@@ -1,5 +1,5 @@
 import clientPromise from './_lib/mongodb.js';
-import { ObjectId } from 'mongodb'; // Precisamos disso para buscar pelo ID correto
+import { ObjectId } from 'mongodb';
 
 export default async function handler(req, res) {
   try {
@@ -7,9 +7,20 @@ export default async function handler(req, res) {
     const db = client.db("lspd_database");
     const usuariosCollection = db.collection("usuarios");
 
-    // Método GET: Puxa todos os usuários para mostrar no Painel Admin
+    // Método GET: Puxa todos os usuários OU puxa apenas um se receber o ID
     if (req.method === 'GET') {
-      // Retorna todos os usuários (tirando as senhas por segurança)
+      const { id } = req.query;
+
+      // Se passou o ID na URL, devolve só esse usuário (usado para sincronizar sessão)
+      if (id) {
+        const usuario = await usuariosCollection.findOne(
+          { _id: new ObjectId(id) }, 
+          { projection: { senha: 0 } } // Remove a senha por segurança
+        );
+        return res.status(200).json(usuario);
+      }
+
+      // Se não passou ID, retorna todos os usuários (para o Painel Admin)
       const usuarios = await usuariosCollection.find({}, { projection: { senha: 0 } }).toArray();
       return res.status(200).json(usuarios);
     }
