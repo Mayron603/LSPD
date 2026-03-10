@@ -3,110 +3,167 @@ import { fetchSeguro } from '../lib/api';
 import html2pdf from 'html2pdf.js';
 import toast from 'react-hot-toast';
 import { 
-  Crosshair, Map, Plus, Users, Clock, XCircle, 
-  Trash2, Shield, Terminal, Activity, Radar, Target, 
-  ChevronRight, FileText, Brain, AlertTriangle, 
-  CheckSquare, FileImage, ShieldAlert, Edit, Download
+  Search, User, AlertTriangle, ShieldAlert, Car, 
+  Users, Briefcase, FileText, Camera, MapPin, 
+  Crosshair, ChevronRight, FileWarning, DollarSign, 
+  Clock, PlusCircle, Save, Fingerprint, Terminal, Activity, FileKey,
+  Trash2, Phone, Edit, Download
 } from 'lucide-react';
 
 const ESTADO_INICIAL_FORMULARIO = {
-  nome: '', codigo: '', tipo: 'Mandado de Prisão', dataHorario: '',
-  comandante: JSON.parse(localStorage.getItem('usuario') || '{}').nome || '',
-  local: '', status: 'Planejada', risco: 'Alto',
-  objetivoPrincipal: '', objetivosSecundarios: '',
-  contexto: '', suspeitos: '', unidades: '',
-  planoTatico: '', evidencias: '', roe: '', resultados: ''
+  nome: '', apelido: '', passaporte: '', nascimento: '', telefone: '', endereco: '', 
+  status: 'Limpo', periculosidade: 'Baixo',
+  veiculos: '', associacoes: '', historico: '', prisoes: '', multas: '', mandados: '', notas: ''
 };
 
-export default function Operacoes() {
-  const [showModal, setShowModal] = useState(false);
-  const [operacoes, setOperacoes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [operacaoSelecionada, setOperacaoSelecionada] = useState(null);
+export default function BancoCriminal() {
+  const [view, setView] = useState('busca'); 
+  const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mensagemBusca, setMensagemBusca] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  
+
+  const [fichasNoBanco, setFichasNoBanco] = useState([]);
+  const [fichaAtual, setFichaAtual] = useState(null);
   const [formData, setFormData] = useState(ESTADO_INICIAL_FORMULARIO);
 
-  const fetchOperacoes = async () => {
+  useEffect(() => {
+    buscarFichas();
+  }, []);
+
+  const buscarFichas = async () => {
     try {
-      const res = await fetchSeguro('/api/operacoes');
-      const data = await res.json();
-      setOperacoes(data);
-    } catch (err) {
-      console.error("Erro ao carregar operações");
-    } finally {
-      setLoading(false);
+      const response = await fetchSeguro('/api/banco-criminal');
+      if (response.ok) {
+        const data = await response.json();
+        setFichasNoBanco(data);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar banco de dados:", error);
     }
   };
 
-  useEffect(() => { fetchOperacoes(); }, []);
+  const handleExcluirRegistro = async (id) => {
+    if (!window.confirm("ATENÇÃO: Tem a certeza absoluta que deseja APAGAR este dossiê permanentemente? Esta ação não pode ser desfeita.")) {
+      return;
+    }
 
-  const handleSalvar = async (e) => {
+    try {
+      const response = await fetchSeguro(`/api/banco-criminal?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await buscarFichas();
+        setView('busca');
+        setFichaAtual(null);
+        setMensagemBusca('DOSSIÊ APAGADO COM SUCESSO DO SISTEMA.');
+      } else {
+        alert("Erro ao tentar apagar o registo.");
+      }
+    } catch (error) {
+      console.error("Erro ao apagar:", error);
+      alert("Falha de comunicação com o servidor.");
+    }
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setMensagemBusca('');
+    
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return;
+
+    const resultado = fichasNoBanco.find(ficha => 
+      (ficha.nome && ficha.nome.toLowerCase().includes(query)) ||
+      (ficha.passaporte && String(ficha.passaporte) === query) ||
+      (ficha.apelido && ficha.apelido.toLowerCase().includes(query))
+    );
+
+    if (resultado) {
+      setFichaAtual(resultado);
+      setView('perfil');
+    } else {
+      setMensagemBusca(`NENHUM REGISTRO ENCONTRADO PARA: "${searchQuery.toUpperCase()}"`);
+      setFichaAtual(null);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditar = () => {
+    setFormData(fichaAtual);
+    setIsEditing(true);
+    setView('criar');
+  };
+
+  const handleSubmitNovaFicha = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    const method = isEditing ? 'PUT' : 'POST';
-    
-    const res = await fetchSeguro('/api/operacoes', {
-      method: method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    });
-    
-    if (res.ok) {
-      setShowModal(false);
-      setIsEditing(false);
-      setFormData(ESTADO_INICIAL_FORMULARIO);
-      fetchOperacoes();
-      
-      if (operacaoSelecionada) {
-          setOperacaoSelecionada(null); 
+
+    try {
+      const method = isEditing ? 'PUT' : 'POST';
+      const response = await fetchSeguro('/api/banco-criminal', {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        setFormData(ESTADO_INICIAL_FORMULARIO);
+        setIsEditing(false);
+        await buscarFichas(); 
+        
+        if (isEditing) {
+          const fichaBuscada = await fetchSeguro('/api/banco-criminal').then(res => res.json());
+          const atual = fichaBuscada.find(f => f._id === formData._id);
+          setFichaAtual(atual);
+          setView('perfil');
+        } else {
+          setView('busca');
+          setSearchQuery('');
+          setMensagemBusca('NOVO REGISTRO INSERIDO COM SUCESSO NO SISTEMA CENTRAL.');
+        }
       }
-      toast.success(isEditing ? 'Operação atualizada com sucesso!' : 'Operação agendada com sucesso!');
-    } else {
-      toast.error('Erro ao processar a operação.');
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleExcluir = async (id) => {
-    if (confirm("AUTORIZAÇÃO REQUERIDA: Deseja remover esta operação do registro oficial?")) {
-      await fetchSeguro(`/api/operacoes?id=${id}`, { method: 'DELETE' });
-      toast.success('Registro apagado.');
-      fetchOperacoes();
-      if (operacaoSelecionada && operacaoSelecionada._id === id) setOperacaoSelecionada(null);
+    } catch (error) {
+      console.error("Erro:", error);
+      alert("ERRO CRÍTICO: Falha na comunicação com o mainframe.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleNovaOperacao = () => {
+  const handleNovaFichaClick = () => {
     setFormData(ESTADO_INICIAL_FORMULARIO);
     setIsEditing(false);
-    setShowModal(true);
-  };
-
-  const handleEditarOperacao = () => {
-    setFormData(operacaoSelecionada);
-    setIsEditing(true);
-    setOperacaoSelecionada(null);
-    setShowModal(true);
+    setView('criar');
   };
 
   // ==========================================
-  // FUNÇÃO DE EXPORTAR PARA PDF
+  // FUNÇÃO DE EXPORTAR PARA PDF (CORRIGIDA)
   // ==========================================
   const handleExportarPDF = () => {
     const elemento = document.getElementById('dossie-imprimir');
     
     const opt = {
-      margin:       0.3,
-      filename:     `LSPD_OP_${operacaoSelecionada.codigo || 'XXX'}_${operacaoSelecionada.nome.replace(/\s+/g, '_')}.pdf`,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#020617' }, // Slate-950 background
+      margin:       [0.4, 0.4], // Margem no topo/baixo e laterais
+      filename:     `LSPD_Dossie_${fichaAtual.passaporte}_${fichaAtual.nome.replace(/\s+/g, '_')}.pdf`,
+      image:        { type: 'jpeg', quality: 1 },
+      html2canvas:  { 
+        scale: 2, 
+        useCORS: true, 
+        backgroundColor: '#020617', // Mantém o fundo escuro bonito
+        windowWidth: 1200, // Força a leitura como ecrã de PC para não quebrar o layout
+        scrollY: 0
+      },
+      pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }, // Evita cortar texto a meio
       jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
 
-    const toastId = toast.loading('A compilar Dossiê Tático em PDF...');
+    const toastId = toast.loading('A compilar Dossiê Oficial em PDF...');
 
     html2pdf().set(opt).from(elemento).save().then(() => {
       toast.success('Dossiê exportado com sucesso!', { id: toastId });
@@ -116,430 +173,372 @@ export default function Operacoes() {
     });
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Planejada': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]';
-      case 'Em andamento': return 'text-blue-400 bg-blue-500/10 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)] animate-pulse';
-      case 'Concluída': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]';
-      default: return 'text-slate-400 bg-slate-500/10 border-slate-500/30';
-    }
-  };
-
-  const getRiscoColor = (risco) => {
-    switch (risco) {
-      case 'Baixo': return 'text-emerald-400';
-      case 'Médio': return 'text-yellow-400';
-      case 'Alto': return 'text-orange-500';
-      case 'Extremo': return 'text-red-500 animate-pulse';
-      default: return 'text-slate-400';
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-slate-950 pt-28 pb-20 text-slate-50 font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-slate-950 pt-28 pb-20 text-slate-50 relative overflow-hidden">
       
-      <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-emerald-900/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
-      <div className="absolute bottom-[20%] right-[-10%] w-[600px] h-[600px] bg-blue-900/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-900/20 blur-[150px] rounded-full pointer-events-none z-0"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-900/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
 
       <div className="max-w-7xl mx-auto px-4 lg:px-8 relative z-10">
         
-        {/* Cabeçalho */}
-        <div className="mb-10 pb-6 border-b border-slate-800/80 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/30 border border-emerald-900/50 text-emerald-400 text-xs font-mono mb-4">
-              <Terminal size={12} />
-              <span>TERMINAL LSPD-OS v5.1 // COMANDO TÁTICO</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tighter flex items-center gap-4">
-              <div className="p-3 bg-emerald-600/10 rounded-xl border border-emerald-500/20">
-                <Radar className="text-emerald-500" size={32} /> 
+        <div className="mb-10 pb-6 border-b border-slate-800/80">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/50 border border-blue-900/50 text-blue-400 text-xs font-mono mb-4">
+                <Terminal size={12} />
+                <span>TERMINAL LSPD-OS v5.0 // ACESSO RESTRITO</span>
               </div>
-              Centro de Operações
-            </h1>
+              <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tighter flex items-center gap-4">
+                <div className="p-3 bg-blue-600/10 rounded-xl border border-blue-500/20">
+                  <Activity className="text-blue-500" size={32} /> 
+                </div>
+                Banco Criminal
+              </h1>
+            </div>
+            
+            <div className="flex flex-wrap gap-3 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 backdrop-blur-md">
+              <button onClick={() => { setView('busca'); setFichaAtual(null); setMensagemBusca(''); }}
+                className={`px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${view === 'busca' || view === 'perfil' ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+                <Search size={16} /> Pesquisa
+              </button>
+              <button onClick={handleNovaFichaClick}
+                className={`px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${view === 'criar' && !isEditing ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800'}`}>
+                <PlusCircle size={16} /> Novo Registro
+              </button>
+            </div>
           </div>
-          
-          <button onClick={handleNovaOperacao} className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 px-8 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] hover:-translate-y-0.5 uppercase tracking-widest text-sm">
-            <Plus size={18} /> Agendar Missão
-          </button>
         </div>
 
-        {/* Painel Central (Lista) */}
-        <div className="animate-in fade-in zoom-in-95 duration-500">
-          {loading ? (
-             <div className="flex flex-col items-center justify-center p-32 border border-slate-800 rounded-3xl bg-slate-900/50 backdrop-blur-sm">
-               <Radar size={48} className="text-emerald-500 animate-spin-slow mb-6 opacity-50" />
-               <p className="text-slate-400 font-mono font-bold tracking-widest uppercase text-sm animate-pulse">Sincronizando base de dados...</p>
-             </div>
-          ) : operacoes.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {operacoes.map((op) => (
-                <div key={op._id} className="bg-slate-900/80 border border-slate-800/80 rounded-3xl overflow-hidden hover:border-slate-600 transition-all duration-300 group backdrop-blur-xl flex flex-col h-full shadow-2xl relative">
-                  
-                  <div className={`absolute top-0 left-0 w-full h-1.5 ${op.status === 'Concluída' ? 'bg-emerald-500' : op.status === 'Em andamento' ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
-
-                  <div className="p-8 flex-1">
-                    <div className="flex justify-between items-start mb-6">
-                      <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black border uppercase tracking-widest flex items-center gap-1.5 ${getStatusColor(op.status)}`}>
-                        <Activity size={12} /> STATUS: {op.status}
-                      </span>
-                      <button onClick={() => handleExcluir(op._id)} className="text-slate-600 hover:text-red-500 bg-slate-950 hover:bg-red-950/50 p-2 rounded-lg transition-colors">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                    
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
-                      <Radar size={10} /> Código da Operação
-                    </p>
-                    <p className="text-emerald-500 text-sm font-mono uppercase tracking-widest mb-3">{op.codigo || 'OP-XXX'}</p>
-                    
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
-                      <Target size={10} /> Nome da Operação
-                    </p>
-                    <h3 className="text-2xl font-black text-white mb-6 uppercase tracking-tight group-hover:text-emerald-400 transition-colors line-clamp-2 leading-tight">
-                      {op.nome}
-                    </h3>
-                    
-                    <div className="space-y-3 text-sm bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
-                      <div className="flex items-start gap-3">
-                        <Shield size={16} className="text-slate-500 mt-0.5" /> 
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Comandante</p>
-                          <p className="font-bold text-slate-200">{op.comandante}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <Map size={16} className="text-slate-500 mt-0.5" /> 
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Local</p>
-                          <p className="font-bold text-slate-200">{op.local}</p>
-                        </div>
-                      </div>
-                    </div>
+        {(view === 'busca' || view === 'perfil') && (
+          <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+            
+            {view === 'busca' && (
+              <form onSubmit={handleSearch} className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+                <div className="relative bg-slate-900 border border-slate-700/50 p-3 rounded-2xl flex gap-3 shadow-2xl backdrop-blur-xl">
+                  <div className="relative flex-1 flex items-center">
+                    <Search className="absolute left-5 text-blue-500" size={24} />
+                    <input 
+                      type="text" 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="INSERIR NOME, PASSAPORTE OU VULGO PARA BUSCA..." 
+                      className="w-full bg-transparent border-none py-4 pl-14 pr-4 text-white text-lg font-medium placeholder:text-slate-500 focus:ring-0 outline-none uppercase tracking-wide"
+                    />
                   </div>
-
-                  <div className="bg-slate-950/80 p-5 flex justify-between items-center border-t border-slate-800 group-hover:bg-slate-900 transition-colors">
-                     <button onClick={() => setOperacaoSelecionada(op)} className="text-xs font-black text-slate-400 hover:text-emerald-400 uppercase tracking-widest flex items-center gap-1 transition-colors w-full text-left">
-                       Dossiê Completo <ChevronRight size={14} className="ml-auto" />
-                     </button>
-                  </div>
+                  <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-10 rounded-xl font-black uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(37,99,235,0.6)] active:scale-95">
+                    Buscar
+                  </button>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center p-20 border border-dashed border-slate-700/50 rounded-3xl bg-slate-900/30 backdrop-blur-sm">
-              <Radar className="text-emerald-500 w-16 h-16 opacity-50 mb-4" />
-              <h3 className="text-2xl font-bold text-slate-300 mb-2 uppercase">Setor Pacífico</h3>
-              <p className="text-slate-500 font-mono text-sm uppercase tracking-widest">[ NENHUMA OPERAÇÃO AGENDADA ]</p>
-            </div>
-          )}
-        </div>
+              </form>
+            )}
 
-        {/* --- MODAL DE VISUALIZAÇÃO (O BRIEFING COMPLETO DIVIDIDO EM CARDS) --- */}
-        {operacaoSelecionada && (
-          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[100] overflow-y-auto custom-scrollbar flex justify-center items-start p-4 sm:p-8 animate-in fade-in zoom-in-95 duration-300">
-            <div id="dossie-imprimir" className="bg-slate-900 border border-slate-700/50 w-full max-w-6xl rounded-3xl shadow-2xl relative flex flex-col my-auto">
-              
-              {/* Header do Dossiê */}
-              <div className="bg-gradient-to-r from-slate-950 to-slate-900 p-6 md:p-8 border-b border-slate-800 flex justify-between items-start md:items-center relative shrink-0 rounded-t-3xl">
-                <div className="absolute right-0 top-0 opacity-5 pointer-events-none"><FileText size={250} className="-mt-16 -mr-10 text-white"/></div>
-                
-                <div className="relative z-10 w-full">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-lg text-[10px] font-black border uppercase tracking-widest inline-flex items-center gap-1.5 ${getStatusColor(operacaoSelecionada.status)}`}>
-                        <Activity size={12} /> STATUS: {operacaoSelecionada.status}
-                      </span>
-                      <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-lg text-[10px] font-mono uppercase tracking-widest border border-slate-700 flex items-center gap-1">
-                        <Radar size={12}/> CÓDIGO: {operacaoSelecionada.codigo || 'OP-XXX'}
-                      </span>
-                    </div>
-                    
-                    {/* Botoes Editar, Exportar e Fechar - IGNORADOS NA IMPRESSÃO PDF */}
-                    <div className="flex flex-wrap gap-2 self-end md:self-auto" data-html2canvas-ignore="true">
-                      <button onClick={handleExportarPDF} className="text-blue-500 hover:text-white bg-blue-900/20 border border-blue-500/30 hover:bg-blue-600 px-4 py-2 rounded-lg transition-colors font-bold uppercase text-xs flex items-center gap-2">
-                        <Download size={16} /> Exportar PDF
-                      </button>
-                      <button onClick={handleEditarOperacao} className="text-yellow-500 hover:text-white bg-yellow-900/20 border border-yellow-500/30 hover:bg-yellow-600 px-4 py-2 rounded-lg transition-colors font-bold uppercase text-xs flex items-center gap-2">
-                        <Edit size={16} /> Editar
-                      </button>
-                      <button onClick={() => setOperacaoSelecionada(null)} className="text-slate-500 hover:text-white bg-slate-800/50 hover:bg-slate-800 p-2 rounded-lg transition-colors">
-                        <XCircle size={24} />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1 flex items-center gap-1">
-                    <Target size={12} /> Nome da Operação
-                  </p>
-                  <h2 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter">
-                      {operacaoSelecionada.nome}
-                  </h2>
-                </div>
+            {mensagemBusca && (
+              <div className={`p-4 rounded-xl font-mono text-sm font-bold text-center border backdrop-blur-md flex items-center justify-center gap-3 ${mensagemBusca.includes('SUCESSO') ? 'bg-emerald-900/20 border-emerald-500/30 text-emerald-400' : 'bg-red-900/20 border-red-500/30 text-red-400'}`}>
+                {mensagemBusca.includes('SUCESSO') ? <ShieldAlert size={18} /> : <AlertTriangle size={18} />}
+                {mensagemBusca}
               </div>
+            )}
 
-              {/* Corpo do Dossiê (Grid de Cards) */}
-              <div className="p-6 md:p-8 bg-slate-950/50 rounded-b-3xl">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  
-                  {/* CARD 1: Informações Gerais */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:col-span-2 shadow-lg">
-                    <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><ShieldAlert size={16}/> 1. Informações Gerais</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Comandante</p>
-                        <p className="text-white font-bold">{operacaoSelecionada.comandante}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Data / Horário</p>
-                        <p className="text-white font-mono">{operacaoSelecionada.dataHorario || 'A definir'}</p>
-                      </div>
-                      <div className="col-span-2 bg-slate-950/50 p-3 rounded-lg border border-slate-800">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1"><Map size={12}/> Localização Alvo</p>
-                        <p className="text-white font-bold">{operacaoSelecionada.local}</p>
-                      </div>
+            {view === 'busca' && !mensagemBusca && (
+              <>
+                {fichasNoBanco.length > 0 ? (
+                  <div className="space-y-6 animate-in fade-in duration-500">
+                    <div className="flex items-center gap-3 border-b border-slate-800/50 pb-3">
+                      <Users className="text-blue-500" size={20} />
+                      <h3 className="text-lg font-black text-slate-300 uppercase tracking-widest">
+                        Registros no Banco de Dados ({fichasNoBanco.length})
+                      </h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {fichasNoBanco.map((ficha) => (
+                        <div 
+                          key={ficha._id || ficha.passaporte}
+                          onClick={() => { setFichaAtual(ficha); setView('perfil'); }}
+                          className="bg-slate-900/80 border border-slate-700/50 rounded-2xl p-6 cursor-pointer hover:border-blue-500/50 hover:bg-slate-800/80 hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden shadow-lg"
+                        >
+                          <div className={`absolute top-0 left-0 w-1.5 h-full ${['Procurado', 'Foragido', 'Preso'].includes(ficha.status) ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'bg-emerald-500'}`}></div>
+                          
+                          <div className="flex justify-between items-start mb-4 relative z-10">
+                            <div>
+                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
+                                <Fingerprint size={10} /> PASSAPORTE: {ficha.passaporte}
+                              </p>
+                              <h4 className="text-xl font-black text-white uppercase group-hover:text-blue-400 transition-colors">{ficha.nome}</h4>
+                              {ficha.apelido && <p className="text-xs text-slate-400 font-medium italic mt-0.5">Vulgo: "{ficha.apelido}"</p>}
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2 relative z-10">
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${['Procurado', 'Foragido', 'Preso'].includes(ficha.status) ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}>
+                              {ficha.status || 'Limpo'}
+                            </span>
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${
+                              ficha.periculosidade === 'Extremo' ? 'bg-red-600 text-white border-red-500' : 
+                              ficha.periculosidade === 'Alto' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : 
+                              ficha.periculosidade === 'Médio' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : 
+                              'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                            }`}>
+                              Risco {ficha.periculosidade || 'Baixo'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-20 border border-dashed border-slate-700/50 rounded-3xl bg-slate-900/30 backdrop-blur-sm">
+                    <Terminal className="w-20 h-20 text-slate-600 mb-6" strokeWidth={1} />
+                    <h3 className="text-2xl font-bold text-slate-300 mb-3 tracking-tight">SISTEMA LSPD PRONTO</h3>
+                    <p className="text-slate-500 font-mono text-sm">
+                      [ BASE DE DADOS VAZIA. AGUARDANDO INSERÇÃO DE DADOS. ]
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
 
-                  {/* CARD 2: Avaliação de Risco */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg relative overflow-hidden">
-                    <div className="absolute -right-4 -bottom-4 opacity-10"><AlertTriangle size={100} className={getRiscoColor(operacaoSelecionada.risco)} /></div>
-                    <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><AlertTriangle size={16}/> 2. Avaliação de Risco</h3>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Nível de Ameaça Estimado</p>
-                    <p className={`text-2xl font-black uppercase tracking-tighter ${getRiscoColor(operacaoSelecionada.risco)}`}>{operacaoSelecionada.risco || 'N/A'}</p>
+            {/* --- ÁREA DO DOSSIÊ QUE SERÁ EXPORTADA PARA PDF --- */}
+            {view === 'perfil' && fichaAtual && (
+              <>
+                <button onClick={() => setView('busca')} className="text-slate-400 hover:text-white uppercase tracking-widest text-xs font-bold mb-4 flex items-center gap-2">
+                  ← Voltar para Busca
+                </button>
+
+                <div id="dossie-imprimir" className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in slide-in-from-bottom-8 duration-700 bg-slate-950 p-4 md:p-8 rounded-[2rem] border border-slate-800/50">
+                  
+                  {/* Coluna Esquerda: ID Card */}
+                  <div className="lg:col-span-4 space-y-6">
+                    <div className="bg-slate-900/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-xl relative group break-inside-avoid">
+                      <div className={`absolute top-0 w-full h-1.5 ${['Procurado', 'Foragido', 'Preso'].includes(fichaAtual.status) ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,1)]' : 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,1)]'}`}></div>
+                      
+                      <div className="p-8 text-center relative">
+                        <div className="relative w-32 h-32 mx-auto mb-6">
+                           <div className="absolute inset-0 bg-slate-800 rounded-2xl rotate-3 transition-transform group-hover:rotate-6"></div>
+                           <div className="absolute inset-0 bg-slate-950 rounded-2xl border-2 border-slate-700 flex items-center justify-center overflow-hidden z-10">
+                             <User size={60} className="text-slate-700" />
+                           </div>
+                        </div>
+                        
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Nome Registrado</p>
+                        <h2 className="text-3xl font-black uppercase tracking-tight text-white mb-1">{fichaAtual.nome}</h2>
+                        <p className="text-blue-400 font-bold tracking-widest text-sm mb-5 uppercase">VULGO: "{fichaAtual.apelido || 'NÃO REGISTRADO'}"</p>
+                        
+                        <div className={`inline-flex items-center gap-2 text-white px-5 py-2 rounded-lg font-black uppercase tracking-widest text-sm shadow-xl ${['Procurado', 'Foragido', 'Preso'].includes(fichaAtual.status) ? 'bg-red-600/20 border border-red-500/50 text-red-500 animate-pulse' : 'bg-emerald-600/20 border border-emerald-500/50 text-emerald-500'}`}>
+                          {['Procurado', 'Foragido', 'Preso'].includes(fichaAtual.status) ? <AlertTriangle size={16} strokeWidth={3} /> : <ShieldAlert size={16} strokeWidth={3} />}
+                          STATUS: {fichaAtual.status || 'LIMPO'}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-slate-950/50 border-t border-slate-800 p-6 break-inside-avoid">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800/50 flex flex-col justify-center">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1"><FileText size={12}/> Passaporte</p>
+                            <p className="font-mono text-blue-300 font-bold text-lg">{fichaAtual.passaporte}</p>
+                          </div>
+                          <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800/50 flex flex-col justify-center">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1"><Clock size={12}/> Nascimento</p>
+                            <p className="font-mono text-slate-300 font-bold">{fichaAtual.nascimento || '---'}</p>
+                          </div>
+                          <div className="col-span-2 bg-slate-900/50 p-3 rounded-lg border border-slate-800/50 flex flex-col justify-center">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1"><Phone size={12}/> Telefone</p>
+                            <p className="font-mono text-slate-300 font-bold text-base">{fichaAtual.telefone || '---'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* BOTÕES DE AÇÃO - Ignorados no PDF */}
+                    <div className="space-y-3 pt-4 border-t border-slate-800" data-html2canvas-ignore="true">
+                      <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest text-center mb-4">Ações do Dossiê</p>
+                      
+                      <button onClick={handleExportarPDF} className="w-full flex items-center justify-center gap-2 bg-blue-950/30 border border-blue-900/50 text-blue-500 hover:bg-blue-600 hover:text-white py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-[0_0_20px_rgba(37,99,235,0.4)]">
+                        <Download size={18} /> Exportar Dossiê (PDF)
+                      </button>
+                      
+                      <button onClick={handleEditar} className="w-full flex items-center justify-center gap-2 bg-yellow-950/30 border border-yellow-900/50 text-yellow-500 hover:bg-yellow-600 hover:text-white py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-[0_0_20px_rgba(234,179,8,0.4)]">
+                        <Edit size={18} /> Atualizar Dossiê
+                      </button>
+                      
+                      <button onClick={() => handleExcluirRegistro(fichaAtual._id)} className="w-full flex items-center justify-center gap-2 bg-red-950/30 border border-red-900/50 text-red-500 hover:bg-red-600 hover:text-white py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-[0_0_20px_rgba(220,38,38,0.4)]">
+                        <Trash2 size={18} /> Apagar do Sistema
+                      </button>
+                    </div>
+
                   </div>
 
-                  {/* CARD 3: Objetivo */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:col-span-3 shadow-lg">
-                    <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Target size={16}/> 3. Objetivos da Missão</h3>
+                  {/* Coluna Direita: Relatórios e Ficha */}
+                  <div className="lg:col-span-8 space-y-6">
+                    
+                    {fichaAtual.mandados && fichaAtual.mandados.trim() !== '' && (
+                       <div className="bg-red-950/20 border border-red-900/50 rounded-3xl p-6 border-l-4 border-l-red-600 shadow-lg relative overflow-hidden break-inside-avoid">
+                         <div className="absolute right-0 top-0 opacity-10"><Crosshair size={150} className="-mt-10 text-red-500"/></div>
+                         <h3 className="font-black uppercase text-red-500 flex items-center gap-2 mb-4 relative z-10">
+                           <Crosshair size={20} strokeWidth={3} /> MANDADOS ATIVOS
+                         </h3>
+                         <p className="text-red-200 text-sm whitespace-pre-wrap leading-relaxed relative z-10 bg-red-950/40 p-4 rounded-xl border border-red-900/30">
+                           {fichaAtual.mandados}
+                         </p>
+                       </div>
+                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2 bg-emerald-950/30 inline-block px-2 py-1 rounded">Objetivo Principal</p>
-                        <p className="text-white font-bold text-lg leading-tight">{operacaoSelecionada.objetivoPrincipal || 'Não definido.'}</p>
+                      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl break-inside-avoid">
+                        <h3 className="font-bold uppercase text-xs mb-4 flex items-center gap-2 text-slate-400 tracking-widest border-b border-slate-800 pb-3">
+                          <FileText className="text-blue-500" size={16}/> Histórico de Infrações
+                        </h3>
+                        {fichaAtual.historico ? (
+                          <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed bg-slate-950/50 p-4 rounded-xl border border-slate-800">{fichaAtual.historico}</p>
+                        ) : (
+                          <p className="text-slate-600 text-sm italic py-4 text-center">Ficha Limpa</p>
+                        )}
                       </div>
-                      {operacaoSelecionada.objetivosSecundarios && (
-                        <div className="border-l border-slate-800 pl-6">
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Objetivos Secundários</p>
-                          <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{operacaoSelecionada.objetivosSecundarios}</p>
-                        </div>
-                      )}
+
+                      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl break-inside-avoid">
+                        <h3 className="font-bold uppercase text-xs mb-4 flex items-center gap-2 text-slate-400 tracking-widest border-b border-slate-800 pb-3">
+                          <Clock className="text-orange-500" size={16}/> Histórico de Prisões
+                        </h3>
+                        {fichaAtual.prisoes ? (
+                          <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed bg-slate-950/50 p-4 rounded-xl border border-slate-800 border-l-2 border-l-orange-500/50">{fichaAtual.prisoes}</p>
+                        ) : (
+                          <p className="text-slate-600 text-sm italic py-4 text-center">Nenhuma prisão registrada.</p>
+                        )}
+                      </div>
+
+                      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl break-inside-avoid">
+                        <h3 className="font-bold uppercase text-xs mb-4 flex items-center gap-2 text-slate-400 tracking-widest border-b border-slate-800 pb-3">
+                          <DollarSign className="text-emerald-500" size={16}/> Multas e Pendências
+                        </h3>
+                        {fichaAtual.multas ? (
+                          <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed bg-slate-950/50 p-4 rounded-xl border border-slate-800">{fichaAtual.multas}</p>
+                        ) : (
+                          <p className="text-slate-600 text-sm italic py-4 text-center">Nenhuma multa pendente.</p>
+                        )}
+                      </div>
+
+                      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl break-inside-avoid">
+                        <h3 className="font-bold uppercase text-xs mb-4 flex items-center gap-2 text-slate-400 tracking-widest border-b border-slate-800 pb-3">
+                          <Car className="text-purple-500" size={16}/> Veículos Registrados
+                        </h3>
+                        {fichaAtual.veiculos ? (
+                          <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed bg-slate-950/50 p-4 rounded-xl border border-slate-800">{fichaAtual.veiculos}</p>
+                        ) : (
+                          <p className="text-slate-600 text-sm italic py-4 text-center">Nenhum veículo no nome.</p>
+                        )}
+                      </div>
                     </div>
+
+                    {fichaAtual.notas && (
+                      <div className="bg-gradient-to-r from-yellow-900/20 to-slate-900/80 border border-yellow-700/30 rounded-3xl p-6 relative overflow-hidden backdrop-blur-md break-inside-avoid">
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-5"><FileWarning size={150} /></div>
+                        <h3 className="font-bold uppercase text-xs mb-3 text-yellow-500 tracking-widest flex items-center gap-2"><FileKey size={14}/> Anotações Confidenciais</h3>
+                        <p className="text-slate-300 text-sm leading-relaxed font-mono relative z-10 border-l-2 border-yellow-600/50 pl-4 py-1 whitespace-pre-wrap">
+                          {fichaAtual.notas}
+                        </p>
+                      </div>
+                    )}
                   </div>
-
-                  {/* CARD 4: Contexto / Inteligência */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:col-span-2 shadow-lg">
-                    <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Brain size={16}/> 4. Inteligência e Contexto</h3>
-                    <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed font-mono">
-                      {operacaoSelecionada.contexto || 'Sem dados de inteligência prévios.'}
-                    </p>
-                  </div>
-
-                  {/* CARD 5: Evidências */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
-                    <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><FileImage size={16}/> 5. Evidências Coletadas</h3>
-                    <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">
-                      {operacaoSelecionada.evidencias || 'Nenhuma evidência anexada.'}
-                    </p>
-                  </div>
-
-                  {/* CARD 6: Suspeitos */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg border-l-4 border-l-red-500">
-                    <h3 className="text-xs font-black text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Crosshair size={16}/> 6. Alvos / Suspeitos</h3>
-                    <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed bg-red-950/10 p-3 rounded-lg">
-                      {operacaoSelecionada.suspeitos || 'Alvos não identificados.'}
-                    </p>
-                  </div>
-
-                  {/* CARD 7: Unidades */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg border-l-4 border-l-blue-500">
-                    <h3 className="text-xs font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Users size={16}/> 7. Unidades Envolvidas</h3>
-                    <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">
-                      {operacaoSelecionada.unidades || 'Unidades não despachadas.'}
-                    </p>
-                  </div>
-
-                  {/* CARD 8: Plano Tático */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:col-span-2 shadow-lg lg:row-span-2">
-                    <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Map size={16}/> 8. Plano Tático de Incursão</h3>
-                    <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed font-mono bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
-                      {operacaoSelecionada.planoTatico || 'O comandante informará o plano no rádio.'}
-                    </p>
-                  </div>
-
-                  {/* CARD 9: Regras de Engajamento */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
-                    <h3 className="text-xs font-black text-yellow-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><CheckSquare size={16}/> 9. Regras de Engajamento (R.O.E)</h3>
-                    <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">
-                      {operacaoSelecionada.roe || '• Seguir protocolo padrão LSPD.\n• Força letal apenas em último caso.'}
-                    </p>
-                  </div>
-
-                  {/* CARD 10: Resultados Pós-Ação */}
-                  {operacaoSelecionada.status === 'Concluída' && (
-                    <div className="bg-emerald-950/20 border border-emerald-900/50 rounded-2xl p-6 shadow-lg lg:col-span-3">
-                      <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-emerald-900/50 pb-2"><Shield size={16}/> 10. Relatório Pós-Ação (Resultados)</h3>
-                      <p className="text-emerald-100/80 text-sm whitespace-pre-wrap leading-relaxed font-mono">
-                        {operacaoSelecionada.resultados || 'Nenhum relatório final anexado à operação.'}
-                      </p>
-                    </div>
-                  )}
-
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         )}
 
-        {/* --- MODAL DE CRIAÇÃO / EDIÇÃO (SUPER FORMULÁRIO) --- */}
-        {showModal && (
-          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[100] overflow-y-auto custom-scrollbar flex justify-center items-start p-4 sm:p-6 animate-in fade-in duration-300">
-            <div className="bg-slate-900 border border-slate-700/50 w-full max-w-5xl rounded-3xl shadow-2xl relative flex flex-col my-auto">
+        {/* --- ABA 3: CRIAR NOVO REGISTRO / EDITAR (FORMULÁRIO COMPLETO) --- */}
+        {view === 'criar' && (
+          <div className="animate-in fade-in zoom-in-95 duration-500 max-w-5xl mx-auto">
+            <div className="bg-slate-900/80 border border-slate-700/50 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl">
               
-              <div className={`bg-gradient-to-r ${isEditing ? 'from-yellow-900/40' : 'from-emerald-900/40'} to-slate-900 p-6 md:p-8 border-b ${isEditing ? 'border-yellow-900/50' : 'border-emerald-900/50'} relative rounded-t-3xl overflow-hidden`}>
+              <div className={`bg-gradient-to-r ${isEditing ? 'from-yellow-900/40' : 'from-emerald-900/40'} to-slate-900 border-b ${isEditing ? 'border-yellow-900/50' : 'border-emerald-900/50'} p-8 relative overflow-hidden`}>
                 <div className="absolute right-0 top-0 opacity-10">
-                  {isEditing ? <Edit size={200} className="-mt-16 -mr-10 text-yellow-500"/> : <Crosshair size={200} className="-mt-16 -mr-10 text-emerald-500"/>}
+                  {isEditing ? <Edit size={200} className="-mt-10 -mr-10 text-yellow-500"/> : <Terminal size={200} className="-mt-10 -mr-10 text-emerald-500"/>}
                 </div>
-                <div className="relative z-10 flex justify-between items-center">
-                  <div>
-                    <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${isEditing ? 'bg-yellow-500/20 text-yellow-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                          {isEditing ? <Edit size={24} /> : <Plus size={24} />}
-                        </div>
-                        {isEditing ? 'EDITAR OPERAÇÃO' : 'Agendar Operação'}
-                    </h2>
-                    <p className="text-slate-400 mt-2 text-sm font-mono tracking-wider">
-                      {isEditing ? 'ATUALIZE O DOSSIÊ TÁTICO' : 'PREENCHA O DOSSIÊ TÁTICO COMPLETO'}
-                    </p>
+                <h2 className="text-3xl font-black text-white uppercase flex items-center gap-4 relative z-10 tracking-tight">
+                  <div className={`p-2 rounded-lg ${isEditing ? 'bg-yellow-500/20 text-yellow-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                    {isEditing ? <Edit size={28} /> : <PlusCircle size={28} />}
                   </div>
-                  <button onClick={() => { setShowModal(false); setIsEditing(false); setFormData(ESTADO_INICIAL_FORMULARIO); }} className="text-slate-500 hover:text-white bg-slate-800/50 hover:bg-slate-800 p-2 rounded-full transition-colors">
-                      <XCircle size={28} />
-                  </button>
-                </div>
+                  {isEditing ? 'Atualização de Dossiê Criminal' : 'Criação de Dossiê Criminal Completo'}
+                </h2>
               </div>
 
-              <form onSubmit={handleSalvar} className="p-6 md:p-8 space-y-10 bg-slate-950/30 rounded-b-3xl">
-                
-                {/* Secção 1 */}
+              <form onSubmit={handleSubmitNovaFicha} className="p-8 space-y-10">
+                {/* 1. Dados Pessoais */}
                 <div>
-                  <h3 className={`text-sm font-black uppercase tracking-widest border-b border-slate-800 pb-2 mb-6 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}>1. Dados Operacionais</h3>
+                  <h3 className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}><User size={14}/> Identificação do Indivíduo</h3>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="group md:col-span-2">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Nome da Operação *</label>
-                      <input required type="text" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none transition-all ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} placeholder="Ex: Operação Hydra" />
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Nome Completo *</label>
+                      <input type="text" name="nome" value={formData.nome} onChange={handleInputChange} required className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white outline-none focus:border-blue-500" />
                     </div>
                     <div className="group md:col-span-1">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Código</label>
-                      <input type="text" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none transition-all font-mono ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.codigo} onChange={e => setFormData({...formData, codigo: e.target.value})} placeholder="OP-021" />
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Apelido (Vulgo)</label>
+                      <input type="text" name="apelido" value={formData.apelido} onChange={handleInputChange} className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white outline-none focus:border-blue-500" />
                     </div>
                     <div className="group md:col-span-1">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Data e Hora</label>
-                      <input type="text" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none transition-all font-mono ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.dataHorario} onChange={e => setFormData({...formData, dataHorario: e.target.value})} placeholder="07/03/2026 - 21:00" />
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Passaporte (ID) *</label>
+                      <input type="text" name="passaporte" value={formData.passaporte} onChange={handleInputChange} required className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white font-mono outline-none focus:border-blue-500" />
                     </div>
-                    <div className="group md:col-span-2">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Localização / Região Alvo *</label>
-                      <input required type="text" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none transition-all ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.local} onChange={e => setFormData({...formData, local: e.target.value})} placeholder="Ex: Galpão abandonado - Grove Street" />
-                    </div>
-                    <div className="group md:col-span-1">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Status Inicial</label>
-                      <select className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
-                        <option>Planejada</option><option>Em andamento</option><option>Concluída</option>
+                  </div>
+                </div>
+
+                {/* 2. Status e Avaliação */}
+                <div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="group">
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Status Atual</label>
+                      <select name="status" value={formData.status} onChange={handleInputChange} className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white outline-none focus:border-blue-500">
+                        <option value="Limpo">Limpo (Cidadão sem pendências)</option>
+                        <option value="Procurado">Procurado (Mandado Ativo / Fuga)</option>
+                        <option value="Preso">Preso (Cumprindo pena no momento)</option>
+                        <option value="Foragido">Foragido (Fugiu do sistema prisional)</option>
                       </select>
                     </div>
-                    <div className="group md:col-span-1">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Nível de Risco</label>
-                      <select className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.risco} onChange={e => setFormData({...formData, risco: e.target.value})}>
-                        <option>Baixo</option><option>Médio</option><option>Alto</option><option>Extremo</option>
+                    <div className="group">
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Nível de Ameaça / Periculosidade</label>
+                      <select name="periculosidade" value={formData.periculosidade} onChange={handleInputChange} className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white outline-none focus:border-blue-500">
+                        <option value="Baixo">Verde - Risco Baixo (Cidadão comum)</option>
+                        <option value="Médio">Amarelo - Risco Médio (Pequenos delitos)</option>
+                        <option value="Alto">Laranja - Risco Alto (Tráfico, gangues armadas)</option>
+                        <option value="Extremo">Vermelho - Risco Extremo (Atirar para matar, Terrorismo)</option>
                       </select>
                     </div>
                   </div>
                 </div>
 
-                {/* Secção 2 */}
+                {/* 4. Histórico Criminal Expandido */}
                 <div>
-                  <h3 className={`text-sm font-black uppercase tracking-widest border-b border-slate-800 pb-2 mb-6 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}>2. Objetivos e Regras (ROE)</h3>
+                  <h3 className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}><FileText size={14}/> Histórico Policial</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Objetivo Principal *</label>
-                      <textarea required rows="2" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.objetivoPrincipal} onChange={e => setFormData({...formData, objetivoPrincipal: e.target.value})} placeholder="Ex: Cumprir mandado de prisão contra Marcus Reed."></textarea>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Infrações e Crimes Cometidos</label>
+                      <textarea name="historico" value={formData.historico} onChange={handleInputChange} rows="4" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm outline-none resize-none focus:border-blue-500"></textarea>
                     </div>
                     <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Regras de Engajamento (R.O.E)</label>
-                      <textarea rows="2" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.roe} onChange={e => setFormData({...formData, roe: e.target.value})} placeholder="Ex: Uso de força letal apenas se os suspeitos dispararem primeiro."></textarea>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Registro de Prisões</label>
+                      <textarea name="prisoes" value={formData.prisoes} onChange={handleInputChange} rows="4" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm outline-none resize-none focus:border-blue-500"></textarea>
                     </div>
                     <div className="group md:col-span-2">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Objetivos Secundários</label>
-                      <textarea rows="2" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.objetivosSecundarios} onChange={e => setFormData({...formData, objetivosSecundarios: e.target.value})} placeholder="Ex: Apreender armas ilegais, recolher evidências..."></textarea>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 group-focus-within:text-red-400 transition-colors">MANDADOS ATIVOS</label>
+                      <textarea name="mandados" value={formData.mandados} onChange={handleInputChange} rows="3" className="w-full bg-red-950/20 border border-red-900/50 rounded-xl px-4 py-3 text-white text-sm focus:border-red-500 outline-none resize-none"></textarea>
                     </div>
                   </div>
                 </div>
 
-                {/* Secção 3 */}
-                <div>
-                  <h3 className={`text-sm font-black uppercase tracking-widest border-b border-slate-800 pb-2 mb-6 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}>3. Inteligência e Alvos</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Contexto / Inteligência</label>
-                      <textarea rows="3" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none resize-none ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.contexto} onChange={e => setFormData({...formData, contexto: e.target.value})} placeholder="Informações obtidas antes da operação. Atividades suspeitas..."></textarea>
-                    </div>
-                    <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Suspeitos Principais</label>
-                      <textarea rows="3" className="w-full bg-red-950/10 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-red-500 outline-none resize-none" value={formData.suspeitos} onChange={e => setFormData({...formData, suspeitos: e.target.value})} placeholder="Nomes, vulgos e periculosidade dos alvos."></textarea>
-                    </div>
-                    <div className="group md:col-span-2">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Evidências Coletadas (Provas prévias)</label>
-                      <input type="text" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none transition-all ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.evidencias} onChange={e => setFormData({...formData, evidencias: e.target.value})} placeholder="Ex: Fotos do galpão, testemunhas, relatório do FIB." />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Secção 4 */}
-                <div>
-                  <h3 className={`text-sm font-black uppercase tracking-widest border-b border-slate-800 pb-2 mb-6 ${isEditing ? 'text-yellow-500' : 'text-emerald-500'}`}>4. Tática e Mobilização</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Unidades Envolvidas</label>
-                      <textarea rows="4" className="w-full bg-blue-950/10 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none resize-none" value={formData.unidades} onChange={e => setFormData({...formData, unidades: e.target.value})} placeholder="Ex: Comando (Sgt. Walker), Patrulha (Adam 12), Tática (Bravo 3)"></textarea>
-                    </div>
-                    <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Plano Tático</label>
-                      <textarea rows="4" className={`w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none resize-none font-mono ${isEditing ? 'focus:border-yellow-500' : 'focus:border-emerald-500'}`} value={formData.planoTatico} onChange={e => setFormData({...formData, planoTatico: e.target.value})} placeholder="Estratégia, rotas de entrada, perímetro, contenção..."></textarea>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Resultados Pós-Ação */}
-                {isEditing && (
-                  <div>
-                    <h3 className="text-sm font-black text-blue-500 uppercase tracking-widest border-b border-slate-800 pb-2 mb-6">5. Relatório Pós-Ação</h3>
-                    <div className="group">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Resultados Obtidos</label>
-                      <textarea rows="4" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none resize-none font-mono" value={formData.resultados} onChange={e => setFormData({...formData, resultados: e.target.value})} placeholder="Relate o desfecho da operação..."></textarea>
-                    </div>
-                  </div>
-                )}
-
-                {/* Botões do Formulário */}
-                <div className="pt-6 border-t border-slate-800/80 flex justify-end gap-4 shrink-0">
-                  <button type="button" onClick={() => { setShowModal(false); setIsEditing(false); setFormData(ESTADO_INICIAL_FORMULARIO); }} className="px-8 py-3.5 rounded-xl font-bold text-slate-400 hover:bg-slate-800 transition-all uppercase tracking-widest text-xs">
+                {/* Botões */}
+                <div className="flex flex-col sm:flex-row justify-end gap-4 pt-8 border-t border-slate-800/80">
+                  <button type="button" onClick={() => { setView('busca'); }} className="px-8 py-3.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors uppercase tracking-widest text-sm">
                     Cancelar
                   </button>
-                  <button type="submit" disabled={isSubmitting} className={`flex items-center justify-center gap-2 text-white font-black px-10 py-3.5 rounded-xl transition-all disabled:opacity-50 uppercase tracking-widest text-xs ${isEditing ? 'bg-yellow-600 hover:bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]'}`}>
-                    {isSubmitting ? 'SALVANDO...' : (isEditing ? 'SALVAR ALTERAÇÕES' : 'REGISTRAR OPERAÇÃO')}
+                  <button type="submit" disabled={isSubmitting} className="flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-white px-10 py-3.5 rounded-xl font-black uppercase tracking-widest transition-all">
+                    <Save size={18} /> {isSubmitting ? 'PROCESSANDO...' : 'SALVAR DOSSIÊ'}
                   </button>
                 </div>
-
               </form>
             </div>
           </div>
         )}
-
       </div>
-      
-      <style dangerouslySetInnerHTML={{__html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(71, 85, 105, 1); }
-      `}} />
     </div>
   );
 }
