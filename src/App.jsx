@@ -16,6 +16,7 @@ import Login from './pages/Login';
 import Registro from './pages/Registro';
 import PainelAdmin from './pages/PainelAdmin';
 import CalculadoraPenal from './pages/CalculadoraPenal'; 
+import MapaTatico from './pages/MapaTatico';
 import './index.css';
 
 // Proteção blindada usando o Contexto em vez do localStorage
@@ -66,6 +67,7 @@ function AppContent() {
           <Route path="/banco-criminal" element={<RotaPrivada><BancoCriminal /></RotaPrivada>} />
           <Route path="/investigacoes" element={<RotaPrivada><Investigacoes /></RotaPrivada>} />
           <Route path="/operacoes" element={<RotaPrivada><Operacoes /></RotaPrivada>} />
+          <Route path="/mapa" element={<RotaPrivada><MapaTatico /></RotaPrivada>} />
           <Route path="/comando" element={<RotaPrivada><PainelComando /></RotaPrivada>} />
           <Route path="/calculadora" element={<RotaPrivada><CalculadoraPenal /></RotaPrivada>} />
           <Route path="/admin" element={<RotaAdmin><PainelAdmin /></RotaAdmin>} />

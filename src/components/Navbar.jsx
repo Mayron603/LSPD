@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Shield, Users, FileText, ClipboardList, Search, 
-  Briefcase, Crosshair, Crown, FileSignature, ShieldAlert, LogOut, Calculator, Sun, Moon 
+  Briefcase, Crosshair, Crown, FileSignature, ShieldAlert, 
+  LogOut, Calculator, Sun, Moon, Map // <-- IMPORT DO ÍCONE MAP AQUI
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -26,6 +27,7 @@ export default function Navbar() {
 
   const toggleTheme = () => setIsLightMode(!isLightMode);
 
+  // ARRAY DE LINKS ATUALIZADO COM O MAPA
   const navLinks = [
     { name: 'Início', path: '/', icon: <Shield size={16} /> },
     { name: 'Sobre', path: '/sobre', icon: <Users size={16} /> },
@@ -35,12 +37,14 @@ export default function Navbar() {
     { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} /> },
     { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },
     { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} /> },
+    { name: 'Mapa', path: '/mapa', icon: <Map size={16} /> }, // <-- NOVO LINK DO MAPA AQUI
     { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
   ];
 
   const handleLogout = () => {
     localStorage.removeItem('autenticado');
     localStorage.removeItem('usuario');
+    localStorage.removeItem('token'); // Adicionado por segurança para limpar o token
     navigate('/login');
   };
 
@@ -107,6 +111,7 @@ export default function Navbar() {
             <button 
               onClick={handleLogout}
               className="p-2 bg-slate-900 hover:bg-red-950 text-slate-400 hover:text-red-500 rounded-lg border border-slate-800 transition-all"
+              title="Terminar Sessão"
             >
               <LogOut size={18} />
             </button>
