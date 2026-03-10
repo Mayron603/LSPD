@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { fetchSeguro } from '../lib/api';
+import html2pdf from 'html2pdf.js';
+import toast from 'react-hot-toast';
 import { 
   Crosshair, Map, Plus, Users, Clock, XCircle, 
   Trash2, Shield, Terminal, Activity, Radar, Target, 
   ChevronRight, FileText, Brain, AlertTriangle, 
-  CheckSquare, FileImage, ShieldAlert, Edit
+  CheckSquare, FileImage, ShieldAlert, Edit, Download
 } from 'lucide-react';
 
 const ESTADO_INICIAL_FORMULARIO = {
@@ -22,13 +24,12 @@ export default function Operacoes() {
   const [loading, setLoading] = useState(true);
   const [operacaoSelecionada, setOperacaoSelecionada] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isEditing, setIsEditing] = useState(false); // Estado para saber se estamos a editar
+  const [isEditing, setIsEditing] = useState(false);
   
   const [formData, setFormData] = useState(ESTADO_INICIAL_FORMULARIO);
 
   const fetchOperacoes = async () => {
     try {
-      // CORRIGIDO: Usando fetchSeguro
       const res = await fetchSeguro('/api/operacoes');
       const data = await res.json();
       setOperacoes(data);
@@ -45,10 +46,8 @@ export default function Operacoes() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Define o método dependendo se está a editar ou a criar
     const method = isEditing ? 'PUT' : 'POST';
     
-    // CORRIGIDO: Usando fetchSeguro
     const res = await fetchSeguro('/api/operacoes', {
       method: method,
       headers: { 'Content-Type': 'application/json' },
@@ -61,18 +60,20 @@ export default function Operacoes() {
       setFormData(ESTADO_INICIAL_FORMULARIO);
       fetchOperacoes();
       
-      // Se estava a ver o perfil, atualiza-o logo a seguir a editar
       if (operacaoSelecionada) {
-          setOperacaoSelecionada(null); // Fecha a vista antiga para evitar inconsistências
+          setOperacaoSelecionada(null); 
       }
+      toast.success(isEditing ? 'Operação atualizada com sucesso!' : 'Operação agendada com sucesso!');
+    } else {
+      toast.error('Erro ao processar a operação.');
     }
     setIsSubmitting(false);
   };
 
   const handleExcluir = async (id) => {
     if (confirm("AUTORIZAÇÃO REQUERIDA: Deseja remover esta operação do registro oficial?")) {
-      // CORRIGIDO: Usando fetchSeguro
       await fetchSeguro(`/api/operacoes?id=${id}`, { method: 'DELETE' });
+      toast.success('Registro apagado.');
       fetchOperacoes();
       if (operacaoSelecionada && operacaoSelecionada._id === id) setOperacaoSelecionada(null);
     }
@@ -89,6 +90,30 @@ export default function Operacoes() {
     setIsEditing(true);
     setOperacaoSelecionada(null);
     setShowModal(true);
+  };
+
+  // ==========================================
+  // FUNÇÃO DE EXPORTAR PARA PDF
+  // ==========================================
+  const handleExportarPDF = () => {
+    const elemento = document.getElementById('dossie-imprimir');
+    
+    const opt = {
+      margin:       0.3,
+      filename:     `LSPD_OP_${operacaoSelecionada.codigo || 'XXX'}_${operacaoSelecionada.nome.replace(/\s+/g, '_')}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#020617' }, // Slate-950 background
+      jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+
+    const toastId = toast.loading('A compilar Dossiê Tático em PDF...');
+
+    html2pdf().set(opt).from(elemento).save().then(() => {
+      toast.success('Dossiê exportado com sucesso!', { id: toastId });
+    }).catch(err => {
+      console.error(err);
+      toast.error('Erro ao gerar o documento.', { id: toastId });
+    });
   };
 
   const getStatusColor = (status) => {
@@ -113,7 +138,6 @@ export default function Operacoes() {
   return (
     <div className="min-h-screen bg-slate-950 pt-28 pb-20 text-slate-50 font-sans relative overflow-hidden">
       
-      {/* Luzes de Fundo */}
       <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-emerald-900/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
       <div className="absolute bottom-[20%] right-[-10%] w-[600px] h-[600px] bg-blue-900/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
 
@@ -212,11 +236,11 @@ export default function Operacoes() {
 
         {/* --- MODAL DE VISUALIZAÇÃO (O BRIEFING COMPLETO DIVIDIDO EM CARDS) --- */}
         {operacaoSelecionada && (
-          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-300">
-            <div className="bg-slate-900 border border-slate-700/50 w-full max-w-6xl rounded-3xl shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[100] overflow-y-auto custom-scrollbar flex justify-center items-start p-4 sm:p-8 animate-in fade-in zoom-in-95 duration-300">
+            <div id="dossie-imprimir" className="bg-slate-900 border border-slate-700/50 w-full max-w-6xl rounded-3xl shadow-2xl relative flex flex-col my-auto">
               
               {/* Header do Dossiê */}
-              <div className="bg-gradient-to-r from-slate-950 to-slate-900 p-6 md:p-8 border-b border-slate-800 flex justify-between items-start md:items-center relative shrink-0">
+              <div className="bg-gradient-to-r from-slate-950 to-slate-900 p-6 md:p-8 border-b border-slate-800 flex justify-between items-start md:items-center relative shrink-0 rounded-t-3xl">
                 <div className="absolute right-0 top-0 opacity-5 pointer-events-none"><FileText size={250} className="-mt-16 -mr-10 text-white"/></div>
                 
                 <div className="relative z-10 w-full">
@@ -230,8 +254,11 @@ export default function Operacoes() {
                       </span>
                     </div>
                     
-                    {/* Botoes Editar e Fechar */}
-                    <div className="flex gap-2 self-end md:self-auto">
+                    {/* Botoes Editar, Exportar e Fechar - IGNORADOS NA IMPRESSÃO PDF */}
+                    <div className="flex flex-wrap gap-2 self-end md:self-auto" data-html2canvas-ignore="true">
+                      <button onClick={handleExportarPDF} className="text-blue-500 hover:text-white bg-blue-900/20 border border-blue-500/30 hover:bg-blue-600 px-4 py-2 rounded-lg transition-colors font-bold uppercase text-xs flex items-center gap-2">
+                        <Download size={16} /> Exportar PDF
+                      </button>
                       <button onClick={handleEditarOperacao} className="text-yellow-500 hover:text-white bg-yellow-900/20 border border-yellow-500/30 hover:bg-yellow-600 px-4 py-2 rounded-lg transition-colors font-bold uppercase text-xs flex items-center gap-2">
                         <Edit size={16} /> Editar
                       </button>
@@ -251,7 +278,7 @@ export default function Operacoes() {
               </div>
 
               {/* Corpo do Dossiê (Grid de Cards) */}
-              <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-slate-950/50">
+              <div className="p-6 md:p-8 bg-slate-950/50 rounded-b-3xl">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   
                   {/* CARD 1: Informações Gerais */}
@@ -318,7 +345,7 @@ export default function Operacoes() {
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg border-l-4 border-l-red-500">
                     <h3 className="text-xs font-black text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Crosshair size={16}/> 6. Alvos / Suspeitos</h3>
                     <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed bg-red-950/10 p-3 rounded-lg">
-                      {operacaoSelecionada.suspeitos || 'Alvos não identified.'}
+                      {operacaoSelecionada.suspeitos || 'Alvos não identificados.'}
                     </p>
                   </div>
 
@@ -364,10 +391,10 @@ export default function Operacoes() {
 
         {/* --- MODAL DE CRIAÇÃO / EDIÇÃO (SUPER FORMULÁRIO) --- */}
         {showModal && (
-          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-            <div className="bg-slate-900 border border-slate-700/50 w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden relative flex flex-col max-h-[95vh]">
+          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[100] overflow-y-auto custom-scrollbar flex justify-center items-start p-4 sm:p-6 animate-in fade-in duration-300">
+            <div className="bg-slate-900 border border-slate-700/50 w-full max-w-5xl rounded-3xl shadow-2xl relative flex flex-col my-auto">
               
-              <div className={`bg-gradient-to-r ${isEditing ? 'from-yellow-900/40' : 'from-emerald-900/40'} to-slate-900 p-6 md:p-8 border-b ${isEditing ? 'border-yellow-900/50' : 'border-emerald-900/50'} relative shrink-0`}>
+              <div className={`bg-gradient-to-r ${isEditing ? 'from-yellow-900/40' : 'from-emerald-900/40'} to-slate-900 p-6 md:p-8 border-b ${isEditing ? 'border-yellow-900/50' : 'border-emerald-900/50'} relative rounded-t-3xl overflow-hidden`}>
                 <div className="absolute right-0 top-0 opacity-10">
                   {isEditing ? <Edit size={200} className="-mt-16 -mr-10 text-yellow-500"/> : <Crosshair size={200} className="-mt-16 -mr-10 text-emerald-500"/>}
                 </div>
@@ -389,7 +416,7 @@ export default function Operacoes() {
                 </div>
               </div>
 
-              <form onSubmit={handleSalvar} className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 space-y-10">
+              <form onSubmit={handleSalvar} className="p-6 md:p-8 space-y-10 bg-slate-950/30 rounded-b-3xl">
                 
                 {/* Secção 1 */}
                 <div>
@@ -479,7 +506,7 @@ export default function Operacoes() {
                   </div>
                 </div>
                 
-                {/* Resultados Pós-Ação (Só aparece se estiver a editar) */}
+                {/* Resultados Pós-Ação */}
                 {isEditing && (
                   <div>
                     <h3 className="text-sm font-black text-blue-500 uppercase tracking-widest border-b border-slate-800 pb-2 mb-6">5. Relatório Pós-Ação</h3>
@@ -491,7 +518,7 @@ export default function Operacoes() {
                 )}
 
                 {/* Botões do Formulário */}
-                <div className="pt-6 border-t border-slate-800/80 flex justify-end gap-4 pb-10 shrink-0">
+                <div className="pt-6 border-t border-slate-800/80 flex justify-end gap-4 shrink-0">
                   <button type="button" onClick={() => { setShowModal(false); setIsEditing(false); setFormData(ESTADO_INICIAL_FORMULARIO); }} className="px-8 py-3.5 rounded-xl font-bold text-slate-400 hover:bg-slate-800 transition-all uppercase tracking-widest text-xs">
                     Cancelar
                   </button>
