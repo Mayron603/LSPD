@@ -9,7 +9,8 @@ import { useAuth } from '../contexts/AuthContext';
 // Configuração do Mapa de Los Santos (GTA V)
 const bounds = [[0, 0], [1000, 1000]];
 // URL de um mapa do GTA V de alta qualidade (Atlas/Satélite)
-const mapImageUrl = 'https://i.imgur.com/5HWez2L.jpg'; 
+// O ficheiro agora é lido diretamente da sua pasta public
+const mapImageUrl = '/mapa-gta.jpg';
 
 // Criação de Ícones Personalizados para evitar erros do Leaflet padrão
 const criarIcone = (tipo) => {
