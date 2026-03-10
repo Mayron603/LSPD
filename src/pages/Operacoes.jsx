@@ -88,62 +88,168 @@ export default function Operacoes() {
     setShowModal(true);
   };
 
+  // ==========================================
+  // EXPORTAÇÃO DE PDF ESTILIZADA
+  // ==========================================
   const exportarParaPDF = (op) => {
     const doc = new jsPDF();
     const dataGeracao = new Date().toLocaleString();
 
-    // Cabeçalho Estilizado
-    doc.setFillColor(15, 23, 42); // Cor bg-slate-900
-    doc.rect(0, 0, 210, 40, 'F');
+    // Paleta de Cores LSPD
+    const colors = {
+      primary: [15, 23, 42],     // slate-950 (Azul muito escuro)
+      secondary: [51, 65, 85],   // slate-700
+      accent: [16, 185, 129],    // emerald-500 (Verde)
+      text: [30, 41, 59],        // slate-800
+      light: [248, 250, 252],    // slate-50
+      border: [203, 213, 225]    // slate-300
+    };
+
+    // --- 1. CABEÇALHO ---
+    doc.setFillColor(...colors.primary);
+    doc.rect(0, 0, 210, 45, 'F');
     
+    // Linha decorativa verde
+    doc.setFillColor(...colors.accent);
+    doc.rect(0, 45, 210, 2, 'F');
+
+    // Textos do Cabeçalho (Esquerda)
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.text("LSPD - RELATORIO DE OPERACAO", 105, 20, { align: "center" });
+    doc.setFontSize(26);
+    doc.setFont("helvetica", "bold");
+    doc.text("LSPD", 14, 20);
+    
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text("LOS SANTOS POLICE DEPARTMENT", 14, 28);
+    
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text("CENTRO DE COMANDO TÁTICO E OPERAÇÕES", 14, 34);
+
+    // Textos do Cabeçalho (Direita)
+    doc.setFontSize(16);
+    doc.setTextColor(...colors.accent);
+    doc.setFont("helvetica", "bold");
+    doc.text(`CÓDIGO: ${op.codigo || 'N/A'}`, 196, 20, { align: "right" });
+    
     doc.setFontSize(10);
-    doc.text(`Codigo: ${op.codigo || 'N/A'} | Gerado em: ${dataGeracao}`, 105, 30, { align: "center" });
+    doc.setTextColor(255, 255, 255);
+    doc.text(`STATUS: ${op.status ? op.status.toUpperCase() : 'N/A'}`, 196, 28, { align: "right" });
+    
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(148, 163, 184);
+    doc.text(`GERADO EM: ${dataGeracao}`, 196, 34, { align: "right" });
 
-    // Informações Principais
-    doc.setTextColor(0, 0, 0);
-    autoTable(doc, {
-      startY: 45,
-      head: [['Campo', 'Informacao']],
-      body: [
-        ['Operacao', op.nome || 'N/A'],
-        ['Comandante', op.comandante || 'N/A'],
-        ['Data/Hora', op.dataHorario || 'A definir'],
-        ['Local', op.local || 'N/A'],
-        ['Status', op.status || 'N/A'],
-        ['Risco', op.risco || 'N/A'],
-      ],
-      theme: 'striped',
-      headStyles: { fillStyle: [30, 41, 59] }
-    });
-
-    // Detalhamento Tático
-    const finalY = doc.lastAutoTable.finalY + 10;
+    // --- 2. DADOS OPERACIONAIS ---
+    let startY = 60;
     doc.setFontSize(14);
-    doc.text("Planejamento e Execucao", 14, finalY);
+    doc.setTextColor(...colors.primary);
+    doc.setFont("helvetica", "bold");
+    doc.text("1. DADOS OPERACIONAIS", 14, startY);
     
     autoTable(doc, {
-      startY: finalY + 5,
+      startY: startY + 5,
+      theme: 'grid',
+      headStyles: { fillColor: colors.secondary, textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: colors.light },
+      styles: { fontSize: 10, cellPadding: 5, textColor: colors.text, lineColor: colors.border, lineWidth: 0.1 },
       body: [
-        ['Objetivo Principal', op.objetivoPrincipal || 'N/A'],
-        ['Objetivos Secundarios', op.objetivosSecundarios || 'N/A'],
-        ['Inteligencia/Contexto', op.contexto || 'N/A'],
-        ['Suspeitos', op.suspeitos || 'N/A'],
-        ['Unidades Envolvidas', op.unidades || 'N/A'],
-        ['Plano Tatico', op.planoTatico || 'N/A'],
-        ['Regras (ROE)', op.roe || 'N/A'],
-        ['Resultados Pós-Acao', op.resultados || 'N/A'],
+        [{ content: 'Nome da Operação:', fontStyle: 'bold' }, op.nome || 'N/A', { content: 'Nível de Risco:', fontStyle: 'bold' }, op.risco || 'N/A'],
+        [{ content: 'Oficial Comandante:', fontStyle: 'bold' }, op.comandante || 'N/A', { content: 'Data / Hora:', fontStyle: 'bold' }, op.dataHorario || 'A definir'],
+        [{ content: 'Localização / Alvo:', fontStyle: 'bold' }, { content: op.local || 'N/A', colSpan: 3 }],
       ],
-      columnStyles: { 0: { fontStyle: 'bold', width: 50 } },
-      styles: { overflow: 'linebreak' } // Garante que textos longos quebrem a linha
+      columnStyles: { 0: { cellWidth: 42, fillColor: [241, 245, 249] }, 2: { cellWidth: 35, fillColor: [241, 245, 249] } }
     });
 
-    // Sanitizar o nome do ficheiro para não dar erro
+    // --- 3. INTELIGÊNCIA E OBJETIVOS ---
+    startY = doc.lastAutoTable.finalY + 12;
+    doc.setFontSize(14);
+    doc.setTextColor(...colors.primary);
+    doc.setFont("helvetica", "bold");
+    doc.text("2. INTELIGÊNCIA E OBJETIVOS", 14, startY);
+
+    autoTable(doc, {
+      startY: startY + 5,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 4, textColor: colors.text, lineColor: colors.border, lineWidth: { bottom: 0.5 } },
+      columnStyles: { 0: { cellWidth: 45, fontStyle: 'bold', textColor: colors.secondary } },
+      body: [
+        ['Objetivo Principal:', op.objetivoPrincipal || 'Não especificado.'],
+        ['Objetivos Secundários:', op.objetivosSecundarios || 'Nenhum.'],
+        ['Contexto / Inteligência:', op.contexto || 'Sem dados prévios registrados.'],
+        ['Alvos / Suspeitos:', op.suspeitos || 'Nenhum alvo específico nomeado.'],
+        ['Evidências Prévias:', op.evidencias || 'Nenhuma evidência anexada.'],
+      ],
+    });
+
+    // --- 4. EXECUÇÃO TÁTICA ---
+    startY = doc.lastAutoTable.finalY + 12;
+    
+    // Evitar quebra de página feia
+    if (startY > 230) { doc.addPage(); startY = 20; }
+
+    doc.setFontSize(14);
+    doc.setTextColor(...colors.primary);
+    doc.setFont("helvetica", "bold");
+    doc.text("3. MOBILIZAÇÃO E TÁTICA", 14, startY);
+
+    autoTable(doc, {
+      startY: startY + 5,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 6, textColor: colors.text, lineColor: colors.border, lineWidth: 0.5 },
+      body: [
+        [{ content: 'UNIDADES ENVOLVIDAS', styles: { fontStyle: 'bold', fillColor: [226, 232, 240] } }],
+        [op.unidades || 'Nenhuma unidade designada até o momento.'],
+        [{ content: 'PLANO TÁTICO DE INCURSÃO', styles: { fontStyle: 'bold', fillColor: [226, 232, 240] } }],
+        [op.planoTatico || 'O comandante informará o plano tático de aproximação via rádio/briefing.'],
+        [{ content: 'REGRAS DE ENGAJAMENTO (R.O.E)', styles: { fontStyle: 'bold', fillColor: [226, 232, 240] } }],
+        [op.roe || '1. Seguir protocolo padrão LSPD.\n2. Força letal apenas em último caso e risco iminente.'],
+      ]
+    });
+
+    // --- 5. RESULTADOS PÓS-AÇÃO (APENAS SE CONCLUÍDA) ---
+    if (op.status === 'Concluída' && op.resultados) {
+      startY = doc.lastAutoTable.finalY + 12;
+      if (startY > 230) { doc.addPage(); startY = 20; }
+
+      doc.setFontSize(14);
+      doc.setTextColor(...colors.accent); // Título verde
+      doc.setFont("helvetica", "bold");
+      doc.text("4. RELATÓRIO PÓS-AÇÃO (A.A.R)", 14, startY);
+
+      autoTable(doc, {
+        startY: startY + 5,
+        theme: 'plain',
+        styles: { fontSize: 10, cellPadding: 6, textColor: [6, 78, 59], fillColor: [209, 250, 229], lineColor: colors.accent, lineWidth: 1 },
+        body: [
+          [op.resultados]
+        ]
+      });
+    }
+
+    // --- 6. RODAPÉ EM TODAS AS PÁGINAS ---
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.setFont("helvetica", "normal");
+      
+      // Linha do rodapé
+      doc.setDrawColor(203, 213, 225); 
+      doc.line(14, 285, 196, 285);
+      
+      doc.text("DOCUMENTO OFICIAL LSPD - ACESSO E DISTRIBUIÇÃO RESTRITA", 14, 290);
+      doc.text(`Página ${i} de ${pageCount}`, 196, 290, { align: "right" });
+    }
+
+    // Gerar e baixar arquivo
     const nomeFicheiroOp = (op.nome || 'Operacao').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    doc.save(`LSPD_${op.codigo || 'DOC'}_${nomeFicheiroOp}.pdf`);
+    doc.save(`LSPD_Dossie_${op.codigo || 'OP'}_${nomeFicheiroOp}.pdf`);
   };
+  // ==========================================
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -287,7 +393,7 @@ export default function Operacoes() {
                     {/* Botoes Exportar, Editar e Fechar */}
                     <div className="flex gap-2 self-end md:self-auto">
                       <button onClick={() => exportarParaPDF(operacaoSelecionada)} className="text-blue-400 hover:text-white bg-blue-900/20 border border-blue-500/30 hover:bg-blue-600 px-4 py-2 rounded-lg transition-colors font-bold uppercase text-xs flex items-center gap-2">
-                        <Download size={16} /> PDF
+                        <Download size={16} /> PDF OFICIAL
                       </button>
                       <button onClick={handleEditarOperacao} className="text-yellow-500 hover:text-white bg-yellow-900/20 border border-yellow-500/30 hover:bg-yellow-600 px-4 py-2 rounded-lg transition-colors font-bold uppercase text-xs flex items-center gap-2">
                         <Edit size={16} /> Editar
