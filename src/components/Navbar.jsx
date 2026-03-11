@@ -2,17 +2,26 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Shield, Users, FileText, ClipboardList, Search, 
-  Briefcase, Crosshair, Crown, FileSignature, ShieldAlert, 
-  LogOut, Calculator, Sun, Moon, Map // <-- IMPORT DO ÍCONE MAP AQUI
+  Briefcase, Crosshair, Crown, ShieldAlert, 
+  LogOut, Calculator, Sun, Moon, Map 
 } from 'lucide-react';
+
+// Lista oficial de Patentes
+const PATENTES = [
+  "Cidadão", "Recruta", "Oficial I", "Oficial II", "Policial Senior", 
+  "Sargento", "Tenente", "Capitão", "Comandante",
+  "Agente FIB", "Diretor FIB"
+];
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const usuarioInfo = JSON.parse(localStorage.getItem('usuario') || '{}');
-  const isAdmin = usuarioInfo?.role === 'admin';
+  
+  const role = usuarioInfo?.role;
+  const patente = usuarioInfo?.patente;
+  const isAdmin = role === 'admin';
 
-  // Sistema de Tema Claro/Escuro
   const [isLightMode, setIsLightMode] = useState(localStorage.getItem('theme') === 'light');
 
   useEffect(() => {
@@ -27,31 +36,39 @@ export default function Navbar() {
 
   const toggleTheme = () => setIsLightMode(!isLightMode);
 
-  // NOVA LÓGICA (Lista Branca): Usa as chaves exatas do teu painel admin
-  const cargosPermitidos = ['admin', 'oficial', 'comando', 'fib'];
-  
-  // Verifica se o utilizador logado tem um dos cargos permitidos
-  const isPolicialOuAdmin = cargosPermitidos.includes(usuarioInfo?.role);
+  // NÍVEL 1: Acesso Policial Básico
+  const cargosPoliciais = ['admin', 'oficial', 'comando', 'fib'];
+  const isPolicialOuAdmin = cargosPoliciais.includes(role);
 
-  // O .filter(Boolean) vai remover tudo o que tiver 'false'
+  // NÍVEL 2: Acesso Restrito (Hierarquia)
+  const patenteIndex = PATENTES.indexOf(patente);
+  const indexSargento = PATENTES.indexOf("Sargento");
+  
+  // Verdadeiro se for admin/comando/fib OU se a patente for Sargento ou maior
+  const temAcessoRestrito = role === 'admin' || role === 'comando' || role === 'fib' || (patenteIndex >= indexSargento && patenteIndex !== -1);
+
+  // Construção dos Links baseada nos Níveis de Acesso
   const navLinks = [
     { name: 'Início', path: '/', icon: <Shield size={16} /> },
     { name: 'Sobre', path: '/sobre', icon: <Users size={16} /> },
     { name: 'Penal', path: '/codigo', icon: <FileText size={16} /> },
+    
+    // Visível para todos os Policiais
     isPolicialOuAdmin && { name: 'Calculadora', path: '/calculadora', icon: <Calculator size={16} /> },
     isPolicialOuAdmin && { name: 'Oficiais', path: '/oficiais', icon: <ClipboardList size={16} /> },
-    isPolicialOuAdmin && { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} /> },
-    isPolicialOuAdmin && { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },
-    isPolicialOuAdmin && { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} /> },
     isPolicialOuAdmin && { name: 'Mapa', path: '/mapa', icon: <Map size={16} /> },
-    isPolicialOuAdmin && { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
+    
+    // Visível APENAS para Sargento+, Comando, FIB e Admin
+    temAcessoRestrito && { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} /> },
+    temAcessoRestrito && { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },
+    temAcessoRestrito && { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} /> },
+    temAcessoRestrito && { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
   ].filter(Boolean);
 
-  
   const handleLogout = () => {
     localStorage.removeItem('autenticado');
     localStorage.removeItem('usuario');
-    localStorage.removeItem('token'); // Adicionado por segurança para limpar o token
+    localStorage.removeItem('token'); 
     navigate('/login');
   };
 
@@ -73,9 +90,7 @@ export default function Navbar() {
                   key={link.name}
                   to={link.path}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all ${
-                    isActive 
-                      ? 'bg-blue-600 text-white' 
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   {link.icon}
@@ -86,12 +101,10 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-2 min-w-fit border-l border-white/10 pl-4">
-            
-            {/* BOTÃO TEMA CLARO/ESCURO */}
             <button 
               onClick={toggleTheme}
               className="p-2 bg-slate-900 hover:bg-blue-900/30 text-slate-400 hover:text-blue-400 rounded-lg border border-slate-800 transition-all mr-2"
-              title="Alternar Tema (Claro/Escuro)"
+              title="Alternar Tema"
             >
               {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
             </button>
@@ -100,9 +113,7 @@ export default function Navbar() {
               <Link
                 to="/admin"
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all ${
-                  location.pathname === '/admin' 
-                    ? 'bg-red-600 text-white' 
-                    : 'bg-red-900/20 text-red-500 border border-red-500/20 hover:bg-red-900/40'
+                  location.pathname === '/admin' ? 'bg-red-600 text-white' : 'bg-red-900/20 text-red-500 border border-red-500/20 hover:bg-red-900/40'
                 }`}
               >
                 <ShieldAlert size={16} />

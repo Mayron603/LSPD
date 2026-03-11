@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast'; // Sistema de Notificações
-import { AuthProvider, useAuth } from './contexts/AuthContext'; // Sistema de Autenticação
+import { Toaster } from 'react-hot-toast'; 
+import { AuthProvider, useAuth } from './contexts/AuthContext'; 
 
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -19,38 +19,53 @@ import CalculadoraPenal from './pages/CalculadoraPenal';
 import MapaTatico from './pages/MapaTatico';
 import './index.css';
 
-// Proteção blindada usando o Contexto em vez do localStorage
+// Lista oficial de Patentes para verificar a hierarquia
+const PATENTES = [
+  "Cidadão", "Recruta", "Oficial I", "Oficial II", "Policial Senior", 
+  "Sargento", "Tenente", "Capitão", "Comandante",
+  "Agente FIB", "Diretor FIB"
+];
+
 const RotaPrivada = ({ children }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
-// Nova proteção: Apenas cargos autorizados podem aceder (Lista Branca baseada nas chaves do painel)
+// Acesso Policial Básico (Recrutas e Oficiais Básicos)
 const RotaPolicial = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
-  
   if (!isAuthenticated) return <Navigate to="/login" />;
 
-  // Usando as chaves exatas do teu ROLES_CONFIG:
   const cargosPermitidos = ['admin', 'oficial', 'comando', 'fib'];
+  if (!cargosPermitidos.includes(user?.role)) return <Navigate to="/" />; 
   
-  // Verifica se a 'role' do utilizador está dentro dessa lista
-  const isAutorizado = cargosPermitidos.includes(user?.role);
+  return children;
+};
+
+// Acesso Restrito (Apenas Sargento+, FIB, Comando e Admin)
+const RotaRestrita = ({ children }) => {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" />;
+
+  const role = user?.role;
+  const patente = user?.patente;
+
+  // Descobre a posição da patente do utilizador na lista
+  const patenteIndex = PATENTES.indexOf(patente);
+  const indexSargento = PATENTES.indexOf("Sargento");
+
+  // Autorizado se for admin/comando/fib OU se a patente for Sargento ou superior
+  const isAutorizado = role === 'admin' || role === 'comando' || role === 'fib' || (patenteIndex >= indexSargento && patenteIndex !== -1);
   
-  // Se for 'visitante' ou não estiver na lista, barra e manda para o Início
   if (!isAutorizado) return <Navigate to="/" />; 
   
   return children;
 };
 
-// Proteção de Admin verificando diretamente no Contexto da Sessão
 const RotaAdmin = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
-  const isAdmin = user?.role === 'admin';
-  
   if (!isAuthenticated) return <Navigate to="/login" />;
-  if (!isAdmin) return <Navigate to="/" />; 
-  
+  if (user?.role !== 'admin') return <Navigate to="/" />; 
   return children;
 };
 
@@ -68,7 +83,6 @@ const LayoutComNavbar = ({ children }) => {
   );
 };
 
-// Componente Wrapper para injetar a navegação e contexto corretamente
 function AppContent() {
   return (
     <Router>
@@ -77,22 +91,23 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Registro />} />
           
-          {/* Rotas gerais acessíveis para todos logados (Visitantes e Policiais) */}
           <Route path="/" element={<RotaPrivada><Home /></RotaPrivada>} />
           <Route path="/sobre" element={<RotaPrivada><Sobre /></RotaPrivada>} />
           <Route path="/recrutamento" element={<RotaPrivada><Recrutamento /></RotaPrivada>} />
           <Route path="/codigo" element={<RotaPrivada><CodigoPenal /></RotaPrivada>} />
           
-          {/* Rotas exclusivas bloqueadas (Usam a RotaPolicial - Lista Branca) */}
+          {/* Rotas de Acesso Policial Básico */}
           <Route path="/oficiais" element={<RotaPolicial><ControleOficiais /></RotaPolicial>} />
-          <Route path="/banco-criminal" element={<RotaPolicial><BancoCriminal /></RotaPolicial>} />
-          <Route path="/investigacoes" element={<RotaPolicial><Investigacoes /></RotaPolicial>} />
-          <Route path="/operacoes" element={<RotaPolicial><Operacoes /></RotaPolicial>} />
           <Route path="/mapa" element={<RotaPolicial><MapaTatico /></RotaPolicial>} />
-          <Route path="/comando" element={<RotaPolicial><PainelComando /></RotaPolicial>} />
           <Route path="/calculadora" element={<RotaPolicial><CalculadoraPenal /></RotaPolicial>} />
           
-          {/* Rota exclusiva para Administradores */}
+          {/* Rotas de Acesso Restrito (Bloqueadas para Recrutas e Oficiais) */}
+          <Route path="/banco-criminal" element={<RotaRestrita><BancoCriminal /></RotaRestrita>} />
+          <Route path="/investigacoes" element={<RotaRestrita><Investigacoes /></RotaRestrita>} />
+          <Route path="/operacoes" element={<RotaRestrita><Operacoes /></RotaRestrita>} />
+          <Route path="/comando" element={<RotaRestrita><PainelComando /></RotaRestrita>} />
+          
+          {/* Rota Admin */}
           <Route path="/admin" element={<RotaAdmin><PainelAdmin /></RotaAdmin>} />
         </Routes>
       </LayoutComNavbar>
@@ -103,19 +118,10 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      {/* Configuração global das Notificações para combinar com o tema do LSPD */}
       <Toaster 
         position="top-right"
         toastOptions={{
-          style: {
-            background: '#0f172a', // bg-slate-900
-            color: '#fff',
-            border: '1px solid #334155', // border-slate-700
-            fontSize: '14px',
-            fontWeight: 'bold',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em'
-          },
+          style: { background: '#0f172a', color: '#fff', border: '1px solid #334155', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' },
           success: { iconTheme: { primary: '#10b981', secondary: '#0f172a' } },
           error: { iconTheme: { primary: '#ef4444', secondary: '#0f172a' } }
         }} 
