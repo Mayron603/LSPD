@@ -27,8 +27,11 @@ export default function Navbar() {
 
   const toggleTheme = () => setIsLightMode(!isLightMode);
 
-  // NOVA LÓGICA (Lista Branca): Verifica se quem está logado tem permissão para ver as abas restritas
-  const isPolicialOuAdmin = usuarioInfo?.role === 'admin' || usuarioInfo?.role === 'policial';
+  // NOVA LÓGICA (Lista Branca): Usa as chaves exatas do teu painel admin
+  const cargosPermitidos = ['admin', 'oficial', 'comando', 'fib'];
+  
+  // Verifica se o utilizador logado tem um dos cargos permitidos
+  const isPolicialOuAdmin = cargosPermitidos.includes(usuarioInfo?.role);
 
   // O .filter(Boolean) vai remover tudo o que tiver 'false'
   const navLinks = [
