@@ -34,10 +34,23 @@ export default function Investigacoes() {
   const [anexoUrl, setAnexoUrl] = useState('');
   const [anexoTipo, setAnexoTipo] = useState('imagem');
 
+  // ==========================================
+  // LÓGICA DE PERMISSÃO (Sargento apenas vê, Tenente+ pode criar)
+  // ==========================================
+  const usuarioInfo = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const role = usuarioInfo?.role;
+  const patente = usuarioInfo?.patente;
+  const PATENTES = ["Cidadão", "Recruta", "Oficial I", "Oficial II", "Policial Senior", "Sargento", "Tenente", "Capitão", "Comandante", "Agente FIB", "Diretor FIB"];
+  const patenteIndex = PATENTES.indexOf(patente);
+  const indexTenente = PATENTES.indexOf("Tenente");
+  
+  // Verdadeiro apenas se for admin, comando, fib ou patente >= Tenente
+  const podeCriar = ['admin', 'comando', 'fib'].includes(role) || (patenteIndex >= indexTenente && patenteIndex !== -1);
+  // ==========================================
+
   const fetchCasos = async () => {
     setLoading(true);
     try {
-      // USANDO FETCH SEGURO AQUI
       const res = await fetchSeguro('/api/investigacoes');
       const data = await res.json();
       setCasos(data);
@@ -72,7 +85,6 @@ export default function Investigacoes() {
     setView('formulario');
   };
 
-  // --- Funções de Arrays (Diligências, Oficiais, Anexos) ---
   const addDiligencia = () => {
     if (!diligenciaInput.trim()) return;
     const novasDiligencias = [...formData.diligencias, { id: Date.now(), texto: diligenciaInput, concluida: false }];
@@ -119,7 +131,6 @@ export default function Investigacoes() {
     setFormData({ ...formData, anexos: formData.anexos.filter(a => a.id !== id) });
   };
 
-  // --- Salvar e Excluir ---
   const handleSalvar = async (e) => {
     e.preventDefault();
     try {
@@ -143,7 +154,6 @@ export default function Investigacoes() {
       };
       delete payload.novoEventoTimeline; 
 
-      // USANDO FETCH SEGURO AQUI
       const res = await fetchSeguro(url, {
         method,
         body: JSON.stringify(payload),
@@ -168,7 +178,6 @@ export default function Investigacoes() {
   const handleExcluir = async (id, e) => {
     if(e) e.stopPropagation();
     if (confirm("AUTORIZAÇÃO FEDERAL EXIGIDA: Deseja apagar este dossiê permanentemente da rede?")) {
-      // USANDO FETCH SEGURO AQUI
       await fetchSeguro(`/api/investigacoes?id=${id}`, { method: 'DELETE' });
       fetchCasos();
       if (view === 'detalhes') setView('lista');
@@ -200,7 +209,7 @@ export default function Investigacoes() {
           
           {view !== 'lista' && (
             <div className="flex gap-3">
-              {view === 'detalhes' && (
+              {view === 'detalhes' && podeCriar && (
                 <button onClick={() => handleOpenFormulario(selectedCase)} className="bg-cyan-900/20 text-cyan-500 border border-cyan-500/50 hover:bg-cyan-600 hover:text-white px-5 py-2.5 rounded-lg font-black uppercase tracking-widest text-xs flex items-center gap-2 transition-all">
                   <Edit size={16} /> Atualizar Caso
                 </button>
@@ -223,9 +232,13 @@ export default function Investigacoes() {
                   <input type="text" placeholder="Buscar dossiê por alvo, tipo ou ID..." className="w-full bg-transparent border-none py-4 pl-12 pr-4 text-white placeholder:text-slate-500 focus:ring-0 outline-none" />
                 </div>
               </div>
-              <button onClick={() => handleOpenFormulario()} className="bg-cyan-600 hover:bg-cyan-500 text-white px-8 rounded-xl font-black tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(8,145,178,0.4)] hover:shadow-[0_0_25px_rgba(8,145,178,0.6)]">
-                <Plus size={18} /> Iniciar Investigação
-              </button>
+              
+              {/* O BOTÃO NOVO SÓ APARECE PARA QUEM PODE CRIAR */}
+              {podeCriar && (
+                <button onClick={() => handleOpenFormulario()} className="bg-cyan-600 hover:bg-cyan-500 text-white px-8 rounded-xl font-black tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(8,145,178,0.4)] hover:shadow-[0_0_25px_rgba(8,145,178,0.6)]">
+                  <Plus size={18} /> Iniciar Investigação
+                </button>
+              )}
             </div>
 
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
@@ -277,9 +290,11 @@ export default function Investigacoes() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button onClick={(e) => handleExcluir(c._id, e)} className="p-2.5 bg-slate-950/50 border border-slate-800 hover:border-red-500/50 text-slate-500 hover:text-red-500 hover:bg-red-950/30 rounded-lg transition-all mr-2">
-                           <Trash2 size={16} />
-                        </button>
+                        {podeCriar && (
+                          <button onClick={(e) => handleExcluir(c._id, e)} className="p-2.5 bg-slate-950/50 border border-slate-800 hover:border-red-500/50 text-slate-500 hover:text-red-500 hover:bg-red-950/30 rounded-lg transition-all mr-2">
+                             <Trash2 size={16} />
+                          </button>
+                        )}
                         <button className="p-2.5 bg-slate-950/50 border border-slate-800 text-slate-500 group-hover:text-cyan-400 group-hover:border-cyan-900/50 rounded-lg transition-all">
                            <ChevronRight size={16} />
                         </button>
@@ -298,11 +313,9 @@ export default function Investigacoes() {
             
             <div className="lg:col-span-8 space-y-6">
               
-              {/* Relatório Principal */}
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
                 <div className="absolute right-0 top-0 opacity-5 pointer-events-none text-white"><Fingerprint size={250} className="-mt-10 -mr-10"/></div>
                 
-                {/* Etiqueta Classificada */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 opacity-5 pointer-events-none select-none">
                   <span className="text-8xl font-black tracking-[0.5em] text-red-500 border-8 border-red-500 px-8 py-2 rounded-3xl">CLASSIFIED</span>
                 </div>
@@ -323,7 +336,6 @@ export default function Investigacoes() {
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Agente Líder</p>
                     <p className="text-slate-200 font-bold uppercase flex items-center gap-2"><UserX size={14} className="text-slate-500"/> {selectedCase.investigador}</p>
                   </div>
-                  {/* Lista de Oficiais Envolvidos */}
                   {selectedCase.oficiaisEnvolvidos && selectedCase.oficiaisEnvolvidos.length > 0 && (
                     <div className="sm:border-l border-slate-800 sm:pl-6 flex-1">
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Equipe Designada</p>
@@ -344,9 +356,7 @@ export default function Investigacoes() {
                 </p>
               </div>
 
-              {/* Grid de Inteligência Misto */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
                 <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl lg:col-span-2">
                   <h3 className="text-xs font-black text-cyan-500 uppercase mb-4 flex items-center gap-2 tracking-widest border-b border-slate-800 pb-3"><CheckSquare size={16}/> Diligências e Tarefas ({selectedCase.diligencias?.length || 0})</h3>
                   {selectedCase.diligencias && selectedCase.diligencias.length > 0 ? (
@@ -376,7 +386,6 @@ export default function Investigacoes() {
                 </div>
               </div>
 
-              {/* MÓDULO MULTIMÍDIA (GALERIA) */}
               {selectedCase.anexos && selectedCase.anexos.length > 0 && (
                 <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
                   <h3 className="text-xs font-black text-indigo-400 uppercase mb-6 flex items-center gap-2 tracking-widest border-b border-slate-800 pb-3">
@@ -399,7 +408,6 @@ export default function Investigacoes() {
                 </div>
               )}
 
-              {/* Conclusão */}
               {selectedCase.conclusao && (
                 <div className="bg-cyan-950/20 border border-cyan-900/50 rounded-3xl p-8 shadow-xl relative overflow-hidden">
                    <div className="absolute right-0 top-0 opacity-10"><Shield size={150} className="-mt-10 -mr-10 text-cyan-500"/></div>
@@ -425,7 +433,6 @@ export default function Investigacoes() {
                 </div>
               </div>
 
-              {/* Informações Locais (Sidebar) */}
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
                 <div>
                   <h3 className="text-[10px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1 tracking-widest"><MapPin size={12}/> Localização</h3>
@@ -485,7 +492,6 @@ export default function Investigacoes() {
               </div>
             </div>
 
-            {/* SEÇÃO NOVA: EQUIPE DESIGNADA */}
             <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-indigo-400 border-b border-slate-800 pb-3 tracking-widest">
               <UserPlus size={18} /> B. Equipe de Investigação
             </h3>
@@ -529,7 +535,6 @@ export default function Investigacoes() {
               </div>
             </div>
 
-            {/* SEÇÃO NOVA: MULTIMÍDIA */}
             <h3 className="font-bold uppercase text-xs mb-8 flex items-center gap-2 text-fuchsia-500 border-b border-slate-800 pb-3 tracking-widest">
               <ImageIcon size={18} /> D. Arquivos e Evidências Visuais
             </h3>

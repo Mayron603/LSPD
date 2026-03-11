@@ -19,7 +19,6 @@ import CalculadoraPenal from './pages/CalculadoraPenal';
 import MapaTatico from './pages/MapaTatico';
 import './index.css';
 
-// Lista oficial de Patentes para verificar a hierarquia
 const PATENTES = [
   "Cidadão", "Recruta", "Oficial I", "Oficial II", "Policial Senior", 
   "Sargento", "Tenente", "Capitão", "Comandante",
@@ -31,34 +30,41 @@ const RotaPrivada = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
-// Acesso Policial Básico (Recrutas e Oficiais Básicos)
+// Nível 1: Policiais (Recrutas, Oficiais I, etc)
 const RotaPolicial = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" />;
-
-  const cargosPermitidos = ['admin', 'oficial', 'comando', 'fib'];
-  if (!cargosPermitidos.includes(user?.role)) return <Navigate to="/" />; 
-  
+  if (!['admin', 'oficial', 'comando', 'fib'].includes(user?.role)) return <Navigate to="/" />; 
   return children;
 };
 
-// Acesso Restrito (Apenas Sargento+, FIB, Comando e Admin)
+// Nível 2: Sargento+, FIB, Comando, Admin (Podem VER as abas)
 const RotaRestrita = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" />;
 
   const role = user?.role;
-  const patente = user?.patente;
-
-  // Descobre a posição da patente do utilizador na lista
-  const patenteIndex = PATENTES.indexOf(patente);
+  const patenteIndex = PATENTES.indexOf(user?.patente);
   const indexSargento = PATENTES.indexOf("Sargento");
 
-  // Autorizado se for admin/comando/fib OU se a patente for Sargento ou superior
-  const isAutorizado = role === 'admin' || role === 'comando' || role === 'fib' || (patenteIndex >= indexSargento && patenteIndex !== -1);
+  const isAutorizado = ['admin', 'comando', 'fib'].includes(role) || (patenteIndex >= indexSargento && patenteIndex !== -1);
+  if (!isAutorizado) return <Navigate to="/" />; 
+  return children;
+};
+
+// Nível 3: Capitão+, Comando, Admin (Aba Comando)
+const RotaComando = ({ children }) => {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" />;
+
+  const role = user?.role;
+  const patenteIndex = PATENTES.indexOf(user?.patente);
+  const indexCapitao = PATENTES.indexOf("Capitão");
+
+  // Autorizado se for admin/comando OU se a patente for Capitão ou superior
+  const isAutorizado = ['admin', 'comando'].includes(role) || (patenteIndex >= indexCapitao && patenteIndex !== -1);
   
   if (!isAutorizado) return <Navigate to="/" />; 
-  
   return children;
 };
 
@@ -96,18 +102,19 @@ function AppContent() {
           <Route path="/recrutamento" element={<RotaPrivada><Recrutamento /></RotaPrivada>} />
           <Route path="/codigo" element={<RotaPrivada><CodigoPenal /></RotaPrivada>} />
           
-          {/* Rotas de Acesso Policial Básico */}
+          {/* Acesso Policial Básico */}
           <Route path="/oficiais" element={<RotaPolicial><ControleOficiais /></RotaPolicial>} />
           <Route path="/mapa" element={<RotaPolicial><MapaTatico /></RotaPolicial>} />
           <Route path="/calculadora" element={<RotaPolicial><CalculadoraPenal /></RotaPolicial>} />
           
-          {/* Rotas de Acesso Restrito (Bloqueadas para Recrutas e Oficiais) */}
+          {/* Acesso Intermediário (Sargento para cima - Pode acessar, mas bloqueio de botões é na página) */}
           <Route path="/banco-criminal" element={<RotaRestrita><BancoCriminal /></RotaRestrita>} />
           <Route path="/investigacoes" element={<RotaRestrita><Investigacoes /></RotaRestrita>} />
           <Route path="/operacoes" element={<RotaRestrita><Operacoes /></RotaRestrita>} />
-          <Route path="/comando" element={<RotaRestrita><PainelComando /></RotaRestrita>} />
           
-          {/* Rota Admin */}
+          {/* Acesso Alto Escalão (Capitão para cima) */}
+          <Route path="/comando" element={<RotaComando><PainelComando /></RotaComando>} />
+          
           <Route path="/admin" element={<RotaAdmin><PainelAdmin /></RotaAdmin>} />
         </Routes>
       </LayoutComNavbar>

@@ -6,7 +6,6 @@ import {
   LogOut, Calculator, Sun, Moon, Map 
 } from 'lucide-react';
 
-// Lista oficial de Patentes
 const PATENTES = [
   "Cidadão", "Recruta", "Oficial I", "Oficial II", "Policial Senior", 
   "Sargento", "Tenente", "Capitão", "Comandante",
@@ -36,33 +35,36 @@ export default function Navbar() {
 
   const toggleTheme = () => setIsLightMode(!isLightMode);
 
-  // NÍVEL 1: Acesso Policial Básico
-  const cargosPoliciais = ['admin', 'oficial', 'comando', 'fib'];
-  const isPolicialOuAdmin = cargosPoliciais.includes(role);
-
-  // NÍVEL 2: Acesso Restrito (Hierarquia)
+  // Índices para checagem
   const patenteIndex = PATENTES.indexOf(patente);
   const indexSargento = PATENTES.indexOf("Sargento");
-  
-  // Verdadeiro se for admin/comando/fib OU se a patente for Sargento ou maior
-  const temAcessoRestrito = role === 'admin' || role === 'comando' || role === 'fib' || (patenteIndex >= indexSargento && patenteIndex !== -1);
+  const indexCapitao = PATENTES.indexOf("Capitão");
 
-  // Construção dos Links baseada nos Níveis de Acesso
+  // Permissões
+  const isPolicialOuAdmin = ['admin', 'oficial', 'comando', 'fib'].includes(role);
+  
+  // Sargento+, FIB, Comando ou Admin
+  const temAcessoRestrito = ['admin', 'comando', 'fib'].includes(role) || (patenteIndex >= indexSargento && patenteIndex !== -1);
+  
+  // Capitão+, Comando ou Admin
+  const temAcessoComando = ['admin', 'comando'].includes(role) || (patenteIndex >= indexCapitao && patenteIndex !== -1);
+
   const navLinks = [
     { name: 'Início', path: '/', icon: <Shield size={16} /> },
     { name: 'Sobre', path: '/sobre', icon: <Users size={16} /> },
     { name: 'Penal', path: '/codigo', icon: <FileText size={16} /> },
     
-    // Visível para todos os Policiais
     isPolicialOuAdmin && { name: 'Calculadora', path: '/calculadora', icon: <Calculator size={16} /> },
     isPolicialOuAdmin && { name: 'Oficiais', path: '/oficiais', icon: <ClipboardList size={16} /> },
     isPolicialOuAdmin && { name: 'Mapa', path: '/mapa', icon: <Map size={16} /> },
     
-    // Visível APENAS para Sargento+, Comando, FIB e Admin
+    // Mostra para Sargentos para cima (e FIB)
     temAcessoRestrito && { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} /> },
     temAcessoRestrito && { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },
     temAcessoRestrito && { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} /> },
-    temAcessoRestrito && { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
+    
+    // Mostra APENAS para Capitães para cima (e Comando)
+    temAcessoComando && { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
   ].filter(Boolean);
 
   const handleLogout = () => {
@@ -76,7 +78,6 @@ export default function Navbar() {
     <nav className="fixed w-full z-50 top-0 border-b border-white/10 bg-slate-950/90 backdrop-blur-md">
       <div className="max-w-full mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          
           <div className="flex items-center gap-2 min-w-fit">
             <Shield className="text-blue-500" size={24} />
             <span className="font-black text-white tracking-tighter text-lg">LSPD</span>
@@ -104,7 +105,6 @@ export default function Navbar() {
             <button 
               onClick={toggleTheme}
               className="p-2 bg-slate-900 hover:bg-blue-900/30 text-slate-400 hover:text-blue-400 rounded-lg border border-slate-800 transition-all mr-2"
-              title="Alternar Tema"
             >
               {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
             </button>
@@ -129,12 +129,10 @@ export default function Navbar() {
             <button 
               onClick={handleLogout}
               className="p-2 bg-slate-900 hover:bg-red-950 text-slate-400 hover:text-red-500 rounded-lg border border-slate-800 transition-all"
-              title="Terminar Sessão"
             >
               <LogOut size={18} />
             </button>
           </div>
-
         </div>
       </div>
     </nav>
