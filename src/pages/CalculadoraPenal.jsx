@@ -103,7 +103,7 @@ const ITENS_ILEGAIS = [
 ].sort();
 
 // AVISO: SUBSTITUA O TEXTO ABAIXO PELO SEU NOVO LINK DE WEBHOOK DO DISCORD
-const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1479990775075831862/sMnB-1W9HN40D9NhC8C_JycNqYonduU3rgdeic1aryw8v3WGCZIi1JPKJ4wkY0Wh-iCI";
+const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1481341664789266484/RmbngdjXua9rkanIXqeAE6oUingDQU3872rhNBGXT1eJF3PR8AEuN0rCg0KUkC9tm1Ki";
 
 export default function CalculadoraPenal() {
   const [oficial, setOficial] = useState(JSON.parse(localStorage.getItem('usuario') || '{}').nome || '');
