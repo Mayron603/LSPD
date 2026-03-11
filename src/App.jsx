@@ -25,6 +25,17 @@ const RotaPrivada = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
+// Nova proteção: Bloqueia civis de acessarem as rotas exclusivas da polícia
+const RotaPolicial = ({ children }) => {
+  const { isAuthenticated, user } = useAuth();
+  const isCivil = user?.role === 'civil';
+  
+  if (!isAuthenticated) return <Navigate to="/login" />;
+  if (isCivil) return <Navigate to="/" />; // Redireciona civis de volta para o Início
+  
+  return children;
+};
+
 // Proteção de Admin verificando diretamente no Contexto da Sessão
 const RotaAdmin = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
@@ -59,17 +70,22 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Registro />} />
           
+          {/* Rotas gerais acessíveis para todos logados (Civis e Policiais) */}
           <Route path="/" element={<RotaPrivada><Home /></RotaPrivada>} />
           <Route path="/sobre" element={<RotaPrivada><Sobre /></RotaPrivada>} />
           <Route path="/recrutamento" element={<RotaPrivada><Recrutamento /></RotaPrivada>} />
           <Route path="/codigo" element={<RotaPrivada><CodigoPenal /></RotaPrivada>} />
-          <Route path="/oficiais" element={<RotaPrivada><ControleOficiais /></RotaPrivada>} />
-          <Route path="/banco-criminal" element={<RotaPrivada><BancoCriminal /></RotaPrivada>} />
-          <Route path="/investigacoes" element={<RotaPrivada><Investigacoes /></RotaPrivada>} />
-          <Route path="/operacoes" element={<RotaPrivada><Operacoes /></RotaPrivada>} />
-          <Route path="/mapa" element={<RotaPrivada><MapaTatico /></RotaPrivada>} />
-          <Route path="/comando" element={<RotaPrivada><PainelComando /></RotaPrivada>} />
-          <Route path="/calculadora" element={<RotaPrivada><CalculadoraPenal /></RotaPrivada>} />
+          
+          {/* Rotas bloqueadas para civis (Usam a RotaPolicial) */}
+          <Route path="/oficiais" element={<RotaPolicial><ControleOficiais /></RotaPolicial>} />
+          <Route path="/banco-criminal" element={<RotaPolicial><BancoCriminal /></RotaPolicial>} />
+          <Route path="/investigacoes" element={<RotaPolicial><Investigacoes /></RotaPolicial>} />
+          <Route path="/operacoes" element={<RotaPolicial><Operacoes /></RotaPolicial>} />
+          <Route path="/mapa" element={<RotaPolicial><MapaTatico /></RotaPolicial>} />
+          <Route path="/comando" element={<RotaPolicial><PainelComando /></RotaPolicial>} />
+          <Route path="/calculadora" element={<RotaPolicial><CalculadoraPenal /></RotaPolicial>} />
+          
+          {/* Rota exclusiva para Administradores */}
           <Route path="/admin" element={<RotaAdmin><PainelAdmin /></RotaAdmin>} />
         </Routes>
       </LayoutComNavbar>
