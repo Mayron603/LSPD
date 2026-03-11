@@ -25,13 +25,18 @@ const RotaPrivada = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
-// Nova proteção: Bloqueia civis de acessarem as rotas exclusivas da polícia
+// Nova proteção: Apenas cargos autorizados podem aceder (Lista Branca)
 const RotaPolicial = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
-  const isCivil = user?.role === 'civil';
   
   if (!isAuthenticated) return <Navigate to="/login" />;
-  if (isCivil) return <Navigate to="/" />; // Redireciona civis de volta para o Início
+
+  // Define os cargos autorizados. Se o utilizador não tiver um destes, será bloqueado.
+  // IMPORTANTE: Verifica se no teu banco de dados o cargo está escrito exatamente como 'policial'
+  const isAutorizado = user?.role === 'admin' || user?.role === 'policial';
+  
+  // Se NÃO for autorizado (for visitante, cidadão, civil, etc), manda para o Início
+  if (!isAutorizado) return <Navigate to="/" />; 
   
   return children;
 };
@@ -70,13 +75,13 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Registro />} />
           
-          {/* Rotas gerais acessíveis para todos logados (Civis e Policiais) */}
+          {/* Rotas gerais acessíveis para todos logados (Civis, Visitantes e Policiais) */}
           <Route path="/" element={<RotaPrivada><Home /></RotaPrivada>} />
           <Route path="/sobre" element={<RotaPrivada><Sobre /></RotaPrivada>} />
           <Route path="/recrutamento" element={<RotaPrivada><Recrutamento /></RotaPrivada>} />
           <Route path="/codigo" element={<RotaPrivada><CodigoPenal /></RotaPrivada>} />
           
-          {/* Rotas bloqueadas para civis (Usam a RotaPolicial) */}
+          {/* Rotas exclusivas bloqueadas (Usam a RotaPolicial - Lista Branca) */}
           <Route path="/oficiais" element={<RotaPolicial><ControleOficiais /></RotaPolicial>} />
           <Route path="/banco-criminal" element={<RotaPolicial><BancoCriminal /></RotaPolicial>} />
           <Route path="/investigacoes" element={<RotaPolicial><Investigacoes /></RotaPolicial>} />

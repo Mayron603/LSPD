@@ -27,20 +27,21 @@ export default function Navbar() {
 
   const toggleTheme = () => setIsLightMode(!isLightMode);
 
-  // ARRAY DE LINKS ATUALIZADO COM O MAPA
-  const isCivil = usuarioInfo?.role === 'civil'; // Verifica se o usuário é civil
+  // NOVA LÓGICA (Lista Branca): Verifica se quem está logado tem permissão para ver as abas restritas
+  const isPolicialOuAdmin = usuarioInfo?.role === 'admin' || usuarioInfo?.role === 'policial';
 
+  // O .filter(Boolean) vai remover tudo o que tiver 'false'
   const navLinks = [
     { name: 'Início', path: '/', icon: <Shield size={16} /> },
     { name: 'Sobre', path: '/sobre', icon: <Users size={16} /> },
     { name: 'Penal', path: '/codigo', icon: <FileText size={16} /> },
-    !isCivil && { name: 'Calculadora', path: '/calculadora', icon: <Calculator size={16} /> },
-    !isCivil && { name: 'Oficiais', path: '/oficiais', icon: <ClipboardList size={16} /> },
-    !isCivil && { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} /> },
-    !isCivil && { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },
-    !isCivil && { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} /> },
-    !isCivil && { name: 'Mapa', path: '/mapa', icon: <Map size={16} /> },
-    !isCivil && { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
+    isPolicialOuAdmin && { name: 'Calculadora', path: '/calculadora', icon: <Calculator size={16} /> },
+    isPolicialOuAdmin && { name: 'Oficiais', path: '/oficiais', icon: <ClipboardList size={16} /> },
+    isPolicialOuAdmin && { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} /> },
+    isPolicialOuAdmin && { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },
+    isPolicialOuAdmin && { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} /> },
+    isPolicialOuAdmin && { name: 'Mapa', path: '/mapa', icon: <Map size={16} /> },
+    isPolicialOuAdmin && { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
   ].filter(Boolean);
 
   
