@@ -28,19 +28,22 @@ export default function Navbar() {
   const toggleTheme = () => setIsLightMode(!isLightMode);
 
   // ARRAY DE LINKS ATUALIZADO COM O MAPA
+  const isCivil = usuarioInfo?.role === 'civil'; // Verifica se o usuário é civil
+
   const navLinks = [
     { name: 'Início', path: '/', icon: <Shield size={16} /> },
     { name: 'Sobre', path: '/sobre', icon: <Users size={16} /> },
     { name: 'Penal', path: '/codigo', icon: <FileText size={16} /> },
-    { name: 'Calculadora', path: '/calculadora', icon: <Calculator size={16} /> },
-    { name: 'Oficiais', path: '/oficiais', icon: <ClipboardList size={16} /> },
-    { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} /> },
-    { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },
-    { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} /> },
-    { name: 'Mapa', path: '/mapa', icon: <Map size={16} /> }, // <-- NOVO LINK DO MAPA AQUI
-    { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
-  ];
+    !isCivil && { name: 'Calculadora', path: '/calculadora', icon: <Calculator size={16} /> },
+    !isCivil && { name: 'Oficiais', path: '/oficiais', icon: <ClipboardList size={16} /> },
+    !isCivil && { name: 'Banco', path: '/banco-criminal', icon: <Search size={16} /> },
+    !isCivil && { name: 'FIB', path: '/investigacoes', icon: <Briefcase size={16} /> },
+    !isCivil && { name: 'Operações', path: '/operacoes', icon: <Crosshair size={16} /> },
+    !isCivil && { name: 'Mapa', path: '/mapa', icon: <Map size={16} /> },
+    !isCivil && { name: 'Comando', path: '/comando', icon: <Crown size={16} /> },
+  ].filter(Boolean);
 
+  
   const handleLogout = () => {
     localStorage.removeItem('autenticado');
     localStorage.removeItem('usuario');
