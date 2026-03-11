@@ -28,6 +28,20 @@ export default function Operacoes() {
   
   const [formData, setFormData] = useState(ESTADO_INICIAL_FORMULARIO);
 
+  // ==========================================
+  // LÓGICA DE PERMISSÃO (Sargento apenas vê, Tenente+ pode criar)
+  // ==========================================
+  const usuarioInfo = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const role = usuarioInfo?.role;
+  const patente = usuarioInfo?.patente;
+  const PATENTES = ["Cidadão", "Recruta", "Oficial I", "Oficial II", "Policial Senior", "Sargento", "Tenente", "Capitão", "Comandante", "Agente FIB", "Diretor FIB"];
+  const patenteIndex = PATENTES.indexOf(patente);
+  const indexTenente = PATENTES.indexOf("Tenente");
+  
+  // Verdadeiro apenas se for admin, comando, fib ou patente >= Tenente
+  const podeCriar = ['admin', 'comando', 'fib'].includes(role) || (patenteIndex >= indexTenente && patenteIndex !== -1);
+  // ==========================================
+
   const fetchOperacoes = async () => {
     try {
       const res = await fetchSeguro('/api/operacoes');
@@ -95,25 +109,21 @@ export default function Operacoes() {
     const doc = new jsPDF();
     const dataGeracao = new Date().toLocaleString();
 
-    // Paleta de Cores LSPD
     const colors = {
-      primary: [15, 23, 42],     // slate-950 (Azul muito escuro)
-      secondary: [51, 65, 85],   // slate-700
-      accent: [16, 185, 129],    // emerald-500 (Verde)
-      text: [30, 41, 59],        // slate-800
-      light: [248, 250, 252],    // slate-50
-      border: [203, 213, 225]    // slate-300
+      primary: [15, 23, 42],     
+      secondary: [51, 65, 85],   
+      accent: [16, 185, 129],    
+      text: [30, 41, 59],        
+      light: [248, 250, 252],    
+      border: [203, 213, 225]    
     };
 
-    // --- 1. CABEÇALHO ---
     doc.setFillColor(...colors.primary);
     doc.rect(0, 0, 210, 45, 'F');
     
-    // Linha decorativa verde
     doc.setFillColor(...colors.accent);
     doc.rect(0, 45, 210, 2, 'F');
 
-    // Textos do Cabeçalho (Esquerda)
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(26);
     doc.setFont("helvetica", "bold");
@@ -124,10 +134,9 @@ export default function Operacoes() {
     doc.text("LOS SANTOS POLICE DEPARTMENT", 14, 28);
     
     doc.setFontSize(9);
-    doc.setTextColor(148, 163, 184); // slate-400
+    doc.setTextColor(148, 163, 184); 
     doc.text("CENTRO DE COMANDO TÁTICO E OPERAÇÕES", 14, 34);
 
-    // Textos do Cabeçalho (Direita)
     doc.setFontSize(16);
     doc.setTextColor(...colors.accent);
     doc.setFont("helvetica", "bold");
@@ -142,7 +151,6 @@ export default function Operacoes() {
     doc.setTextColor(148, 163, 184);
     doc.text(`GERADO EM: ${dataGeracao}`, 196, 34, { align: "right" });
 
-    // --- 2. DADOS OPERACIONAIS ---
     let startY = 60;
     doc.setFontSize(14);
     doc.setTextColor(...colors.primary);
@@ -163,7 +171,6 @@ export default function Operacoes() {
       columnStyles: { 0: { cellWidth: 42, fillColor: [241, 245, 249] }, 2: { cellWidth: 35, fillColor: [241, 245, 249] } }
     });
 
-    // --- 3. INTELIGÊNCIA E OBJETIVOS ---
     startY = doc.lastAutoTable.finalY + 12;
     doc.setFontSize(14);
     doc.setTextColor(...colors.primary);
@@ -184,10 +191,7 @@ export default function Operacoes() {
       ],
     });
 
-    // --- 4. EXECUÇÃO TÁTICA ---
     startY = doc.lastAutoTable.finalY + 12;
-    
-    // Evitar quebra de página feia
     if (startY > 230) { doc.addPage(); startY = 20; }
 
     doc.setFontSize(14);
@@ -209,13 +213,12 @@ export default function Operacoes() {
       ]
     });
 
-    // --- 5. RESULTADOS PÓS-AÇÃO (APENAS SE CONCLUÍDA) ---
     if (op.status === 'Concluída' && op.resultados) {
       startY = doc.lastAutoTable.finalY + 12;
       if (startY > 230) { doc.addPage(); startY = 20; }
 
       doc.setFontSize(14);
-      doc.setTextColor(...colors.accent); // Título verde
+      doc.setTextColor(...colors.accent); 
       doc.setFont("helvetica", "bold");
       doc.text("4. RELATÓRIO PÓS-AÇÃO (A.A.R)", 14, startY);
 
@@ -229,15 +232,13 @@ export default function Operacoes() {
       });
     }
 
-    // --- 6. RODAPÉ EM TODAS AS PÁGINAS ---
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.setTextColor(148, 163, 184); // slate-400
+      doc.setTextColor(148, 163, 184); 
       doc.setFont("helvetica", "normal");
       
-      // Linha do rodapé
       doc.setDrawColor(203, 213, 225); 
       doc.line(14, 285, 196, 285);
       
@@ -245,7 +246,6 @@ export default function Operacoes() {
       doc.text(`Página ${i} de ${pageCount}`, 196, 290, { align: "right" });
     }
 
-    // Gerar e baixar arquivo
     const nomeFicheiroOp = (op.nome || 'Operacao').replace(/[^a-z0-9]/gi, '_').toLowerCase();
     doc.save(`LSPD_Dossie_${op.codigo || 'OP'}_${nomeFicheiroOp}.pdf`);
   };
@@ -294,9 +294,12 @@ export default function Operacoes() {
             </h1>
           </div>
           
-          <button onClick={handleNovaOperacao} className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 px-8 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] hover:-translate-y-0.5 uppercase tracking-widest text-sm">
-            <Plus size={18} /> Agendar Missão
-          </button>
+          {/* BOTÃO CRIAR RESTRITO PARA TENENTE+ */}
+          {podeCriar && (
+            <button onClick={handleNovaOperacao} className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 px-8 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] hover:-translate-y-0.5 uppercase tracking-widest text-sm">
+              <Plus size={18} /> Agendar Missão
+            </button>
+          )}
         </div>
 
         {/* Painel Central (Lista) */}
@@ -318,9 +321,11 @@ export default function Operacoes() {
                       <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black border uppercase tracking-widest flex items-center gap-1.5 ${getStatusColor(op.status)}`}>
                         <Activity size={12} /> STATUS: {op.status}
                       </span>
-                      <button onClick={() => handleExcluir(op._id)} className="text-slate-600 hover:text-red-500 bg-slate-950 hover:bg-red-950/50 p-2 rounded-lg transition-colors">
-                        <Trash2 size={16} />
-                      </button>
+                      {podeCriar && (
+                        <button onClick={() => handleExcluir(op._id)} className="text-slate-600 hover:text-red-500 bg-slate-950 hover:bg-red-950/50 p-2 rounded-lg transition-colors">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                     
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
@@ -390,14 +395,19 @@ export default function Operacoes() {
                       </span>
                     </div>
                     
-                    {/* Botoes Exportar, Editar e Fechar */}
                     <div className="flex gap-2 self-end md:self-auto">
+                      {/* O PDF todos podem ver */}
                       <button onClick={() => exportarParaPDF(operacaoSelecionada)} className="text-blue-400 hover:text-white bg-blue-900/20 border border-blue-500/30 hover:bg-blue-600 px-4 py-2 rounded-lg transition-colors font-bold uppercase text-xs flex items-center gap-2">
                         <Download size={16} /> PDF OFICIAL
                       </button>
-                      <button onClick={handleEditarOperacao} className="text-yellow-500 hover:text-white bg-yellow-900/20 border border-yellow-500/30 hover:bg-yellow-600 px-4 py-2 rounded-lg transition-colors font-bold uppercase text-xs flex items-center gap-2">
-                        <Edit size={16} /> Editar
-                      </button>
+                      
+                      {/* O botão EDITAR só para Tenente+ */}
+                      {podeCriar && (
+                        <button onClick={handleEditarOperacao} className="text-yellow-500 hover:text-white bg-yellow-900/20 border border-yellow-500/30 hover:bg-yellow-600 px-4 py-2 rounded-lg transition-colors font-bold uppercase text-xs flex items-center gap-2">
+                          <Edit size={16} /> Editar
+                        </button>
+                      )}
+                      
                       <button onClick={() => setOperacaoSelecionada(null)} className="text-slate-500 hover:text-white bg-slate-800/50 hover:bg-slate-800 p-2 rounded-lg transition-colors">
                         <XCircle size={24} />
                       </button>
@@ -417,7 +427,6 @@ export default function Operacoes() {
               <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-slate-950/50">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   
-                  {/* CARD 1: Informações Gerais */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:col-span-2 shadow-lg">
                     <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><ShieldAlert size={16}/> 1. Informações Gerais</h3>
                     <div className="grid grid-cols-2 gap-4">
@@ -436,7 +445,6 @@ export default function Operacoes() {
                     </div>
                   </div>
 
-                  {/* CARD 2: Avaliação de Risco */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg relative overflow-hidden">
                     <div className="absolute -right-4 -bottom-4 opacity-10"><AlertTriangle size={100} className={getRiscoColor(operacaoSelecionada.risco)} /></div>
                     <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><AlertTriangle size={16}/> 2. Avaliação de Risco</h3>
@@ -444,7 +452,6 @@ export default function Operacoes() {
                     <p className={`text-2xl font-black uppercase tracking-tighter ${getRiscoColor(operacaoSelecionada.risco)}`}>{operacaoSelecionada.risco || 'N/A'}</p>
                   </div>
 
-                  {/* CARD 3: Objetivo */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:col-span-3 shadow-lg">
                     <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Target size={16}/> 3. Objetivos da Missão</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -461,7 +468,6 @@ export default function Operacoes() {
                     </div>
                   </div>
 
-                  {/* CARD 4: Contexto / Inteligência */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:col-span-2 shadow-lg">
                     <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Brain size={16}/> 4. Inteligência e Contexto</h3>
                     <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed font-mono">
@@ -469,7 +475,6 @@ export default function Operacoes() {
                     </p>
                   </div>
 
-                  {/* CARD 5: Evidências */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
                     <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><FileImage size={16}/> 5. Evidências Coletadas</h3>
                     <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">
@@ -477,7 +482,6 @@ export default function Operacoes() {
                     </p>
                   </div>
 
-                  {/* CARD 6: Suspeitos */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg border-l-4 border-l-red-500">
                     <h3 className="text-xs font-black text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Crosshair size={16}/> 6. Alvos / Suspeitos</h3>
                     <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed bg-red-950/10 p-3 rounded-lg">
@@ -485,7 +489,6 @@ export default function Operacoes() {
                     </p>
                   </div>
 
-                  {/* CARD 7: Unidades */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg border-l-4 border-l-blue-500">
                     <h3 className="text-xs font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Users size={16}/> 7. Unidades Envolvidas</h3>
                     <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">
@@ -493,7 +496,6 @@ export default function Operacoes() {
                     </p>
                   </div>
 
-                  {/* CARD 8: Plano Tático */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:col-span-2 shadow-lg lg:row-span-2">
                     <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><Map size={16}/> 8. Plano Tático de Incursão</h3>
                     <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed font-mono bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
@@ -501,7 +503,6 @@ export default function Operacoes() {
                     </p>
                   </div>
 
-                  {/* CARD 9: Regras de Engajamento */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
                     <h3 className="text-xs font-black text-yellow-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2"><CheckSquare size={16}/> 9. Regras de Engajamento (R.O.E)</h3>
                     <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">
@@ -509,7 +510,6 @@ export default function Operacoes() {
                     </p>
                   </div>
 
-                  {/* CARD 10: Resultados Pós-Ação */}
                   {operacaoSelecionada.status === 'Concluída' && (
                     <div className="bg-emerald-950/20 border border-emerald-900/50 rounded-2xl p-6 shadow-lg lg:col-span-3">
                       <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-emerald-900/50 pb-2"><Shield size={16}/> 10. Relatório Pós-Ação (Resultados)</h3>
