@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { 
   Shield, Crosshair, FileSearch, 
   Megaphone, MapPin, CheckCircle, XCircle, 
-  TrendingUp, AlertOctagon,
-  AlertTriangle, LayoutDashboard, Loader2, Activity,
-  Target, BarChart, ShieldAlert, Radar,
-  Edit2, Trash2, Send, Check, X, FileText, Flame
+  AlertOctagon, AlertTriangle, LayoutDashboard, 
+  Loader2, Activity, Target, BarChart, 
+  ShieldAlert, Radar, Edit2, Trash2, Send, 
+  Check, X, FileText, Flame, ClipboardList,
+  Search, User, Hash
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchSeguro } from '../lib/api';
@@ -29,19 +30,43 @@ export default function PainelComando() {
   const [textoEditado, setTextoEditado] = useState("");
   const LIMITE_CARACTERES = 250;
 
+  // ==========================================
+  // ESTADOS DE RELATÓRIOS DE OFICIAIS
+  // ==========================================
+  const patentes = [
+  'Recruta', 'Oficial I', 'Oficial II', 'Oficial Senior', 'Sargento', 'Tenente', 'Capitão', 'Sub-Comandante', 'Comandante'
+  ];
+
+  const [formRelatorio, setFormRelatorio] = useState({
+    nome: '',
+    patente: 'Recruta',
+    badge: '',
+    descricao: ''
+  });
+  const [buscaOficial, setBuscaOficial] = useState('');
+  
+  // Alterado: Começa vazio e será preenchido pelo banco de dados
+  const [relatorios, setRelatorios] = useState([]);
+  const [enviandoRelatorio, setEnviandoRelatorio] = useState(false);
+
   const templates = [
     "Alerta Geral: Suspeito armado avistado na região central.",
     "Diretriz: Uso de força letal autorizado apenas em risco iminente.",
     "Todas as unidades: Retornar à delegacia para briefing imediato."
   ];
 
+  // ==========================================
+  // BUSCA INICIAL DE DADOS (GET)
+  // ==========================================
   useEffect(() => {
     const fetchDados = async () => {
       try {
-        const [resOperacoes, resInvestigacoes, resComunicados] = await Promise.all([
+        // Adicionado: fetchSeguro('/api/relatorios')
+        const [resOperacoes, resInvestigacoes, resComunicados, resRelatorios] = await Promise.all([
           fetchSeguro('/api/operacoes'),
           fetchSeguro('/api/investigacoes'),
-          fetchSeguro('/api/comunicados')
+          fetchSeguro('/api/comunicados'),
+          fetchSeguro('/api/relatorios')
         ]);
 
         if (resOperacoes.ok) {
@@ -55,6 +80,10 @@ export default function PainelComando() {
         if (resComunicados.ok) {
           const comData = await resComunicados.json();
           setComunicados(Array.isArray(comData) ? comData : []);
+        }
+        if (resRelatorios.ok) {
+          const relData = await resRelatorios.json();
+          setRelatorios(Array.isArray(relData) ? relData : []);
         }
       } catch (error) {
         console.error("Erro ao buscar dados do Alto Comando:", error);
@@ -148,6 +177,64 @@ export default function PainelComando() {
     }
   };
 
+  // ==========================================
+  // FUNÇÕES DE RELATÓRIOS DE OFICIAIS (CONECTADO)
+  // ==========================================
+  const carregarRelatorios = async () => {
+    const res = await fetchSeguro('/api/relatorios');
+    if (res.ok) {
+      const data = await res.json();
+      setRelatorios(Array.isArray(data) ? data : []);
+    }
+  };
+
+  const adicionarRelatorio = async () => {
+    if (!formRelatorio.nome.trim() || !formRelatorio.badge.trim() || !formRelatorio.descricao.trim()) {
+      alert("Preencha o Nome, Badge e a Descrição da ocorrência.");
+      return;
+    }
+    
+    setEnviandoRelatorio(true);
+    try {
+      const res = await fetchSeguro('/api/relatorios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formRelatorio,
+          autor: user?.nome || 'Alto Comando',
+          data: new Date().toLocaleDateString()
+        })
+      });
+
+      if (res.ok) {
+        carregarRelatorios(); // Recarrega a lista do banco
+        setFormRelatorio({ nome: '', patente: 'Recruta', badge: '', descricao: '' }); // Limpa formulário
+      }
+    } catch (error) {
+      console.error("Erro ao salvar relatório:", error);
+    } finally {
+      setEnviandoRelatorio(false);
+    }
+  };
+
+  const deletarRelatorio = async (id) => {
+    if(!window.confirm("Deseja apagar este registro disciplinar do dossiê do oficial?")) return;
+    
+    try {
+      const res = await fetchSeguro(`/api/relatorios?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        carregarRelatorios(); // Recarrega a lista sem o item deletado
+      }
+    } catch (error) {
+      console.error("Erro ao deletar relatório:", error);
+    }
+  };
+
+  const relatoriosFiltrados = relatorios.filter(rel => 
+    rel.nome.toLowerCase().includes(buscaOficial.toLowerCase()) || 
+    rel.badge.includes(buscaOficial)
+  );
+
   // Filtros seguros
   const operacoesPendentes = (operacoes || []).filter(op => op.status === 'Planejada' || op.status === 'Aguardando');
   const operacoesAtivas = (operacoes || []).filter(op => op.status === 'Aprovada' || op.status === 'Em andamento');
@@ -214,7 +301,8 @@ export default function PainelComando() {
           {[
             { id: 'geral', label: 'Visão Geral', icon: LayoutDashboard, color: 'text-yellow-500', activeColor: 'bg-yellow-500/10 border-yellow-500 text-yellow-500' },
             { id: 'tatico', label: 'Operações (Tático)', icon: Crosshair, color: 'text-red-500', activeColor: 'bg-red-500/10 border-red-500 text-red-500' },
-            { id: 'inteligencia', label: 'FIB (Inteligência)', icon: AlertOctagon, color: 'text-purple-500', activeColor: 'bg-purple-500/10 border-purple-500 text-purple-500' }
+            { id: 'inteligencia', label: 'FIB (Inteligência)', icon: AlertOctagon, color: 'text-purple-500', activeColor: 'bg-purple-500/10 border-purple-500 text-purple-500' },
+            { id: 'relatorios', label: 'Dossiê de Oficiais', icon: ClipboardList, color: 'text-orange-500', activeColor: 'bg-orange-500/10 border-orange-500 text-orange-500' }
           ].map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`px-6 py-4 font-black text-xs uppercase tracking-widest flex items-center gap-3 border-b-2 transition-all duration-300 whitespace-nowrap rounded-t-lg
@@ -227,12 +315,9 @@ export default function PainelComando() {
         {/* --- CONTEÚDO DAS ABAS --- */}
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           
-          {/* =========================================
-              ABA 1: VISÃO GERAL
-              ========================================= */}
+          {/* ABA 1: VISÃO GERAL */}
           {activeTab === 'geral' && (
             <div className="space-y-8">
-              
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="relative overflow-hidden p-8 rounded-3xl border border-orange-500/30 bg-gradient-to-br from-orange-950/40 to-slate-900 flex items-center justify-between text-left shadow-[0_0_20px_rgba(249,115,22,0.1)]">
                   <div className="absolute -right-6 -top-6 opacity-10"><AlertTriangle size={150} /></div>
@@ -252,30 +337,9 @@ export default function PainelComando() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* ZONAS QUENTES */}
-                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl h-[700px]">
-                  <div className="absolute left-0 top-0 w-1.5 h-full bg-orange-500"></div>
-                  <h3 className="font-black uppercase text-xs mb-6 flex items-center gap-3 text-orange-500 tracking-widest border-b border-slate-800/50 pb-4">
-                    <MapPin size={16} /> Radar de Ocorrências e Alertas
-                  </h3>
-                  <div className="space-y-4">
-                    <p className="text-slate-400 font-bold flex items-center gap-2 text-[10px] uppercase tracking-widest">
-                      <TrendingUp size={14} className="text-orange-400"/> Zonas Quentes Identificadas
-                    </p>
-                    <ul className="space-y-3">
-                      {['Tráfico intenso de entorpecentes em Grove Street.', 'Aumento de desmanches na região de Sandy Shores.', 'Comboios suspeitos reportados próximos ao porto.'].map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-3 text-sm text-slate-300 font-medium bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
-                          <Activity size={16} className="text-orange-500/50 mt-0.5 shrink-0" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* CENTRAL DE COMUNICADOS OFICIAIS */}
-                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl flex flex-col h-[700px]">
+              {/* CENTRAL DE COMUNICADOS OFICIAIS CENTRALIZADA */}
+              <div className="max-w-4xl mx-auto w-full">
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl flex flex-col min-h-[600px]">
                   <div className="absolute left-0 top-0 w-1.5 h-full bg-blue-500"></div>
                   
                   <div className="flex justify-between items-center border-b border-slate-800/50 pb-4 mb-6">
@@ -287,7 +351,6 @@ export default function PainelComando() {
                     </span>
                   </div>
                   
-                  {/* COMPOSER (CRIAR DIRETRIZ) */}
                   <div className="bg-slate-950 border border-slate-800/80 rounded-2xl p-4 mb-6 shadow-inner relative">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
                       <Edit2 size={12}/> Redigir Nova Ordem
@@ -555,6 +618,178 @@ export default function PainelComando() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* =========================================
+              ABA 4: RELATÓRIO DE OFICIAIS (NOVA UI)
+              ========================================= */}
+          {activeTab === 'relatorios' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+              
+              {/* COLUNA ESQUERDA: FORMULÁRIO */}
+              <div className="lg:col-span-1">
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-2xl sticky top-24">
+                  <div className="absolute left-0 top-0 w-1.5 h-full bg-orange-500"></div>
+                  
+                  <h3 className="font-black uppercase text-lg flex items-center gap-3 text-orange-400 tracking-widest border-b border-slate-800/50 pb-4 mb-6">
+                    <Edit2 size={20} /> Registrar Ocorrência
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {/* NOME DO OFICIAL */}
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 flex items-center gap-2">
+                        <User size={12}/> Oficial Envolvido
+                      </label>
+                      <input 
+                        type="text" 
+                        value={formRelatorio.nome} 
+                        onChange={(e) => setFormRelatorio({...formRelatorio, nome: e.target.value})}
+                        placeholder="Nome do Oficial..."
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 text-sm focus:border-orange-500 outline-none transition-all placeholder:text-slate-700 font-bold"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* PATENTE */}
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 flex items-center gap-2">
+                          <Shield size={12}/> Patente
+                        </label>
+                        <select 
+                          value={formRelatorio.patente} 
+                          onChange={(e) => setFormRelatorio({...formRelatorio, patente: e.target.value})}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 text-sm focus:border-orange-500 outline-none transition-all font-bold appearance-none cursor-pointer"
+                        >
+                          {patentes.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      </div>
+
+                      {/* BADGE / PASSAPORTE */}
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 flex items-center gap-2">
+                          <Hash size={12}/> Badge / ID
+                        </label>
+                        <input 
+                          type="text" 
+                          value={formRelatorio.badge} 
+                          onChange={(e) => setFormRelatorio({...formRelatorio, badge: e.target.value.replace(/\D/g, '')})}
+                          placeholder="Ex: 123"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 text-sm focus:border-orange-500 outline-none transition-all placeholder:text-slate-700 font-bold font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* DESCRIÇÃO DA CONDUTA */}
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 flex items-center gap-2">
+                        <FileText size={12}/> Conduta / Relato
+                      </label>
+                      <textarea 
+                        value={formRelatorio.descricao} 
+                        onChange={(e) => setFormRelatorio({...formRelatorio, descricao: e.target.value})}
+                        placeholder="Descreva detalhadamente a atitude do oficial..."
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 text-sm focus:border-orange-500 outline-none resize-none h-32 transition-all placeholder:text-slate-700 font-mono"
+                      />
+                    </div>
+                    
+                    <button 
+                      onClick={adicionarRelatorio} 
+                      disabled={enviandoRelatorio || !formRelatorio.nome || !formRelatorio.badge || !formRelatorio.descricao}
+                      className="w-full bg-orange-600 hover:bg-orange-500 text-white px-6 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(234,88,12,0.3)] mt-2"
+                    >
+                      {enviandoRelatorio ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />} 
+                      {enviandoRelatorio ? 'Salvando...' : 'Enviar ao Dossiê'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* COLUNA DIREITA: PESQUISA E LISTA */}
+              <div className="lg:col-span-2 flex flex-col h-full">
+                
+                {/* BARRA DE PESQUISA */}
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-4 mb-6 flex items-center gap-3 shadow-lg">
+                  <Search size={20} className="text-slate-500" />
+                  <input 
+                    type="text" 
+                    value={buscaOficial}
+                    onChange={(e) => setBuscaOficial(e.target.value)}
+                    placeholder="Pesquisar histórico por Nome ou Badge..."
+                    className="w-full bg-transparent text-white font-medium outline-none placeholder:text-slate-600"
+                  />
+                  {buscaOficial && (
+                    <button onClick={() => setBuscaOficial('')} className="text-slate-500 hover:text-white transition-colors">
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {/* LISTAGEM DOS RELATÓRIOS */}
+                <div className="bg-slate-900/40 border border-slate-800/50 rounded-3xl p-6 flex-1 min-h-[500px]">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-black uppercase text-sm flex items-center gap-2 text-slate-400 tracking-widest">
+                      <ClipboardList size={16} /> 
+                      {buscaOficial ? 'Resultados da Pesquisa' : 'Histórico Geral de Oficiais'}
+                    </h3>
+                    <span className="text-[10px] font-black px-2 py-1 bg-slate-950 border border-slate-800 rounded-md text-slate-500">
+                      {relatoriosFiltrados.length} REGISTROS
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {relatoriosFiltrados.length > 0 ? relatoriosFiltrados.map((rel) => (
+                      <div key={rel._id} className="bg-slate-950/80 border border-slate-800 hover:border-orange-500/30 p-5 rounded-2xl relative group transition-all hover:shadow-[0_0_20px_rgba(234,88,12,0.05)]">
+                        
+                        {/* CABEÇALHO DO CARD */}
+                        <div className="flex justify-between items-start mb-3 border-b border-slate-800/50 pb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-lg flex flex-col items-center justify-center min-w-[50px]">
+                              <span className="text-[8px] text-orange-500 font-black uppercase tracking-widest">Badge</span>
+                              <span className="text-sm font-black text-orange-400 font-mono">{rel.badge}</span>
+                            </div>
+                            <div>
+                              <h4 className="font-black text-white uppercase text-lg tracking-tight">{rel.nome}</h4>
+                              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest flex items-center gap-1">
+                                <Shield size={10} className="text-orange-500/50"/> {rel.patente}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <button onClick={() => deletarRelatorio(rel._id)} className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-2 bg-slate-900 rounded-lg" title="Apagar Registro">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        
+                        {/* CORPO DO CARD (DESCRIÇÃO) */}
+                        <div className="pl-2 border-l-2 border-slate-800 group-hover:border-orange-500/30 transition-colors mb-4 ml-1">
+                          <p className="text-sm text-slate-300 leading-relaxed font-mono whitespace-pre-wrap pl-2">
+                            "{rel.descricao}"
+                          </p>
+                        </div>
+                        
+                        {/* RODAPÉ DO CARD */}
+                        <div className="flex justify-between items-center bg-slate-900/50 rounded-lg p-2 px-3 border border-slate-800/50">
+                          <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest">
+                            Data do Relato: <span className="text-slate-400">{rel.data}</span>
+                          </p>
+                          <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest flex items-center gap-1">
+                            Reportado por: <span className="text-white bg-slate-800 px-2 py-0.5 rounded ml-1">{rel.autor}</span>
+                          </p>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="flex flex-col items-center justify-center h-64 text-slate-600 border border-dashed border-slate-800 rounded-2xl p-6 bg-slate-900/20">
+                        <Search size={40} className="mb-4 opacity-30 text-slate-500"/>
+                        <p className="text-xs font-black uppercase tracking-widest text-center">Nenhum registro encontrado.</p>
+                        <p className="text-[10px] text-slate-500 mt-2 font-medium">A ficha criminal e interna está limpa.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
