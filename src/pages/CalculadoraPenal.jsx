@@ -537,8 +537,8 @@ DATA: ${new Date().toLocaleString('pt-BR')}
             </div>
           </div>
 
-          <div className="space-y-6 flex flex-col">
-            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl shadow-xl">
+          <div className="space-y-6 flex flex-col relative">
+            <div className="relative z-30 overflow-visible bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl shadow-xl">
               <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2">
                 <Scale size={16} /> Adicionar Imputações Penais
               </h3>
@@ -553,7 +553,7 @@ DATA: ${new Date().toLocaleString('pt-BR')}
                 </div>
 
                 {menuCrimesAberto && (
-                  <div className="absolute top-full left-0 w-full mt-2 bg-slate-800 border border-emerald-500/50 rounded-xl shadow-2xl overflow-hidden max-h-[300px] overflow-y-auto custom-scrollbar z-50">
+                  <div className="absolute top-full left-0 w-full mt-2 bg-slate-800 border border-emerald-500/50 rounded-xl shadow-2xl overflow-hidden max-h-[300px] overflow-y-auto custom-scrollbar z-[9999]">
                     {crimesFiltrados.length > 0 ? (
                       crimesFiltrados.map((crime, idx) => (
                         <div key={idx} onClick={() => handleAddCrime(crime)} className="p-4 border-b border-slate-700 hover:bg-emerald-900/40 cursor-pointer flex justify-between items-center transition-colors">
@@ -575,7 +575,7 @@ DATA: ${new Date().toLocaleString('pt-BR')}
               </div>
             </div>
 
-            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl shadow-xl flex-1 flex flex-col">
+            <div className="relative z-10 bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl shadow-xl flex-1 flex flex-col">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800 pb-2">
                 <FileText size={16} /> Crimes Registrados na Ocorrência
               </h3>
